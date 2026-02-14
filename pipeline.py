@@ -5,7 +5,7 @@ This module orchestrates:
 1. Data loading and preprocessing
 2. Deep Learning prediction (1D CNN)
 3. SHAP explainability
-4. LLM reasoning (Ollama)
+4. LLM reasoning (HuggingFace)
 5. Risk scoring
 6. Decision agent action execution
 
@@ -24,7 +24,7 @@ from models.cnn_model import create_ids_model
 from models.trainer import IDSModelTrainer
 from explainability.shap_explainer import create_shap_explainer
 from explainability.risk_scorer import create_risk_scorer
-from llm.ollama_client import create_ollama_explainer
+from llm.huggingface_client import create_huggingface_explainer
 from agent.decision_agent import create_decision_agent
 
 
@@ -40,18 +40,18 @@ class IDSPipeline:
     """
     
     def __init__(self, model_path='saved_models/ids_cnn.keras', 
-                 use_ollama=True, ollama_model='llama3.2'):
+                 use_llm=True, llm_model='google/flan-t5-base'):
         """
         Initialize the pipeline.
         
         Args:
             model_path: Path to save/load trained model
-            use_ollama: Whether to use Ollama for LLM reasoning
-            ollama_model: Ollama model name
+            use_llm: Whether to use HuggingFace LLM for reasoning
+            llm_model: HuggingFace model name
         """
         self.model_path = model_path
-        self.use_ollama = use_ollama
-        self.ollama_model = ollama_model
+        self.use_llm = use_llm
+        self.llm_model = llm_model
         
         # Components (initialized during run)
         self.data_loader = None
@@ -158,21 +158,21 @@ class IDSPipeline:
         print(f"\n✓ SHAP explainer initialized")
     
     def initialize_llm(self):
-        """Initialize LLM explainer (Ollama)."""
-        print("\n[STEP 4/6] Initializing LLM Reasoning (Ollama)")
+        """Initialize LLM explainer (HuggingFace)."""
+        print("\n[STEP 4/6] Initializing LLM Reasoning (HuggingFace)")
         print("-" * 70)
         
-        if self.use_ollama:
+        if self.use_llm:
             try:
-                self.llm_explainer = create_ollama_explainer(
-                    model_name=self.ollama_model,
+                self.llm_explainer = create_huggingface_explainer(
+                    model_name=self.llm_model,
                     temperature=0.3
                 )
-                print(f"\n✓ LLM explainer initialized with {self.ollama_model}")
+                print(f"\n✓ LLM explainer initialized with {self.llm_model}")
             except Exception as e:
-                print(f"\n⚠ Warning: Could not initialize Ollama: {e}")
+                print(f"\n⚠ Warning: Could not initialize HuggingFace LLM: {e}")
                 print("Continuing without LLM reasoning...")
-                self.use_ollama = False
+                self.use_llm = False
         else:
             print("LLM reasoning disabled")
     
@@ -257,7 +257,7 @@ class IDSPipeline:
         
         # 4. LLM Reasoning
         llm_explanation = None
-        if self.use_ollama and self.llm_explainer:
+        if self.use_llm and self.llm_explainer:
             if verbose:
                 print("\n[4] LLM Reasoning...")
             
@@ -356,15 +356,15 @@ def main():
     parser = argparse.ArgumentParser(description='Autonomous Explainable IDS Pipeline')
     parser.add_argument('--samples', type=int, default=5, help='Number of samples to process')
     parser.add_argument('--retrain', action='store_true', help='Force model retraining')
-    parser.add_argument('--no-ollama', action='store_true', help='Disable Ollama LLM')
-    parser.add_argument('--ollama-model', type=str, default='llama3.2', help='Ollama model name')
+    parser.add_argument('--no-llm', action='store_true', help='Disable HuggingFace LLM')
+    parser.add_argument('--llm-model', type=str, default='google/flan-t5-base', help='HuggingFace model name')
     
     args = parser.parse_args()
     
     # Create and run pipeline
     pipeline = IDSPipeline(
-        use_ollama=not args.no_ollama,
-        ollama_model=args.ollama_model
+        use_llm=not args.no_llm,
+        llm_model=args.llm_model
     )
     
     results = pipeline.run_pipeline(
