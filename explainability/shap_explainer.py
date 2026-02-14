@@ -62,9 +62,16 @@ class SHAPExplainer:
         prediction = self.model.predict(sample, verbose=0)
         predicted_class = np.argmax(prediction[0])
         
-        # Get SHAP values for the predicted class
-        # Shape: (1, features, 1) -> squeeze to (features,)
-        class_shap_values = shap_values[predicted_class][0].squeeze()
+        # Handle different SHAP output formats
+        if isinstance(shap_values, list) and len(shap_values) > predicted_class:
+            # Multi-class: list of arrays, one per class
+            class_shap_values = shap_values[predicted_class][0].squeeze()
+        elif isinstance(shap_values, list) and len(shap_values) > 0:
+            # Fallback: use first available class
+            class_shap_values = shap_values[0][0].squeeze()
+        else:
+            # Single array format
+            class_shap_values = shap_values[0].squeeze()
         
         # Get absolute values for ranking importance
         abs_shap_values = np.abs(class_shap_values)
