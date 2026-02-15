@@ -33,45 +33,37 @@ class IDSDataLoader:
         self.label_mapping = None
         
     def load_dataset(self):
-        """
-        Load IDS dataset from multiple possible locations.
-        """
 
         print("Loading IDS dataset...")
 
         possible_paths = [
             os.path.expanduser("~/.cache/kagglehub/datasets/solarmainframe/ids-intrusion-csv/versions/1"),
             "/kaggle/input/ids-intrusion-csv",
-            "/content/ids-intrusion-csv",
-            "/content"
+            "/content/ids-intrusion-csv"
         ]
 
         dataset_path = None
 
         for path in possible_paths:
             if os.path.exists(path):
-                print(f"Found dataset path: {path}")
-                dataset_path = path
-                break
+                # Ensure CSV exists inside
+                csv_files = [f for f in os.listdir(path) if f.endswith('.csv')]
+                if csv_files:
+                    dataset_path = path
+                    print(f"Found dataset path: {path}")
+                    break
 
         if dataset_path is None:
             raise FileNotFoundError(
-                "Dataset not found in any known location.\n"
-                "Please download using kagglehub before running pipeline."
+                "Dataset not found. Please download using kagglehub first."
             )
 
-        # Find CSV file
         csv_files = [f for f in os.listdir(dataset_path) if f.endswith('.csv')]
-
-        if not csv_files:
-            raise FileNotFoundError(
-                f"No CSV file found inside {dataset_path}"
-            )
-
         csv_path = os.path.join(dataset_path, csv_files[0])
+
         print(f"Loading CSV file: {csv_path}")
 
-        df = pd.read_csv(csv_path)
+        df = pd.read_csv(csv_path, low_memory=False)
         print(f"Dataset loaded: {df.shape[0]} samples, {df.shape[1]} columns")
 
         return df
