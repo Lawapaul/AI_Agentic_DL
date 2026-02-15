@@ -11,10 +11,9 @@ import os
 import numpy as np
 import tensorflow as tf
 from tensorflow import keras
-from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.metrics import classification_report
 from models.model_factory import get_model
 import matplotlib.pyplot as plt
-import seaborn as sns
 
 
 class IDSModelTrainer:
@@ -40,7 +39,7 @@ class IDSModelTrainer:
     # =====================================================
 
     def train(self, X_train, y_train, X_test, y_test,
-              epochs=50, batch_size=128, validation_split=0.2):
+              epochs=50, batch_size=128):
 
         print(f"\n=== Training IDS {self.model_type.upper()} Model ===")
         print(f"Training samples: {X_train.shape[0]}")
@@ -48,7 +47,7 @@ class IDSModelTrainer:
         print(f"Batch size: {batch_size}")
         print(f"Max epochs: {epochs}")
 
-        # Ensure correct shape for Conv1D / LSTM models
+        # Ensure correct shape
         if len(X_train.shape) == 2:
             X_train = X_train.reshape(X_train.shape[0], X_train.shape[1], 1)
             X_test = X_test.reshape(X_test.shape[0], X_test.shape[1], 1)
@@ -64,11 +63,18 @@ class IDSModelTrainer:
             num_classes=num_classes
         )
 
+        # 🔥 IMPORTANT FIX: Compile here
+        self.model.compile(
+            optimizer=keras.optimizers.Adam(),
+            loss="sparse_categorical_crossentropy",
+            metrics=["accuracy"]
+        )
+
         # Callbacks
         callbacks = [
             keras.callbacks.EarlyStopping(
                 monitor='val_loss',
-                patience=10,
+                patience=5,
                 restore_best_weights=True,
                 verbose=1
             ),
@@ -81,7 +87,7 @@ class IDSModelTrainer:
             keras.callbacks.ReduceLROnPlateau(
                 monitor='val_loss',
                 factor=0.5,
-                patience=5,
+                patience=3,
                 min_lr=1e-6,
                 verbose=1
             )
@@ -112,13 +118,10 @@ class IDSModelTrainer:
 
         print("\n=== Evaluating Model ===")
 
-        # Ensure correct shape
         if len(X_test.shape) == 2:
             X_test = X_test.reshape(X_test.shape[0], X_test.shape[1], 1)
 
-        test_loss, test_acc = self.model.evaluate(
-            X_test, y_test, verbose=0
-        )
+        test_loss, test_acc = self.model.evaluate(X_test, y_test, verbose=0)
 
         print(f"Test Loss: {test_loss:.4f}")
         print(f"Test Accuracy: {test_acc:.4f}")
@@ -134,7 +137,6 @@ class IDSModelTrainer:
 
     def predict(self, X, return_probabilities=True):
 
-        # Ensure correct shape
         if len(X.shape) == 2:
             X = X.reshape(X.shape[0], X.shape[1], 1)
 
@@ -152,7 +154,6 @@ class IDSModelTrainer:
     def get_detailed_report(self, X_test, y_test, label_mapping):
 
         y_pred = self.predict(X_test, return_probabilities=False)
-
         target_names = [label_mapping[i] for i in sorted(label_mapping.keys())]
 
         print("\n=== Detailed Classification Report ===")
@@ -173,21 +174,15 @@ class IDSModelTrainer:
 
         fig, axes = plt.subplots(1, 2, figsize=(12, 4))
 
-        # Accuracy
         axes[0].plot(self.history.history['accuracy'], label='Train')
         axes[0].plot(self.history.history['val_accuracy'], label='Validation')
         axes[0].set_title('Model Accuracy')
-        axes[0].set_xlabel('Epoch')
-        axes[0].set_ylabel('Accuracy')
         axes[0].legend()
         axes[0].grid(True)
 
-        # Loss
         axes[1].plot(self.history.history['loss'], label='Train')
         axes[1].plot(self.history.history['val_loss'], label='Validation')
         axes[1].set_title('Model Loss')
-        axes[1].set_xlabel('Epoch')
-        axes[1].set_ylabel('Loss')
         axes[1].legend()
         axes[1].grid(True)
 
@@ -208,8 +203,7 @@ class IDSModelTrainer:
     @staticmethod
     def load_model(path):
         print(f"Loading model from: {path}")
-        model = keras.models.load_model(path)
-        return model
+        return keras.models.load_model(path)
 
 
 if __name__ == "__main__":
