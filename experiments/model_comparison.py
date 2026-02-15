@@ -5,7 +5,7 @@ from data.loader import IDSDataLoader
 from models.trainer import IDSModelTrainer
 from sklearn.metrics import f1_score
 
-MODEL_LIST = ["cnn", "resnet", "lstm", "gru", "transformer", "hybrid"]
+MODEL_LIST = ["cnn", "lstm", "gru", "hybrid", "resnet", "transformer"]  
 
 def run_experiment():
     print("\n=== MODEL COMPARISON EXPERIMENT ===\n")
@@ -30,7 +30,7 @@ def run_experiment():
             data['y_train'],
             data['X_test'],
             data['y_test'],
-            epochs=3,              # Keep small for comparison
+            epochs=2,              # Keep small for comparison
             batch_size=256         # Reduce GPU memory pressure
         )
 
