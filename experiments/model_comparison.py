@@ -17,8 +17,8 @@ MODEL_LIST = ["cnn", "lstm", "gru", "hybrid", "resnet", "transformer"]
 # ==========================================================
 # DATA LOADING
 # ==========================================================
-def load_cicids2017_dataset(path="cicids2017/*.csv", max_per_class=20000):
-    print("\n=== Loading CICIDS2017 Dataset ===\n")
+def load_cicids2017_dataset(path="cicids2017/*.csv", max_per_class=15000):
+    print("\n=== Loading CICIDS2017 Dataset (Memory Safe) ===\n")
 
     files = glob.glob(path)
     print("Found files:", len(files))
@@ -27,62 +27,40 @@ def load_cicids2017_dataset(path="cicids2017/*.csv", max_per_class=20000):
 
     for file in files:
         print("Loading:", file)
-        temp = pd.read_csv(file)
 
-        # 🔥 Strip column whitespace immediately
+        temp = pd.read_csv(file)
         temp.columns = temp.columns.str.strip()
+
+        # Clean here per file
+        temp.replace([np.inf, -np.inf], np.nan, inplace=True)
+        temp.dropna(inplace=True)
 
         df_list.append(temp)
 
     df = pd.concat(df_list, ignore_index=True)
-
-    # 🔥 Ensure final cleanup
     df.columns = df.columns.str.strip()
 
-    print("\nOriginal Shape:", df.shape)
-    print("Columns:", list(df.columns)[:5], "...")
+    print("Original shape:", df.shape)
 
-    # 🔥 Safe label detection
-    label_col = None
-    for col in df.columns:
-        if col.lower() == "label":
-            label_col = col
-            break
+    # ---------
+    # Balanced sampling safely
+    # ---------
 
-    if label_col is None:
-        raise ValueError("Label column not found!")
+    label_col = "Label"
 
-    print("Detected Label Column:", label_col)
+    print("Applying balanced sampling...")
 
-    print("\nTotal Classes:", df[label_col].nunique())
+    sampled_list = []
+
+    for label in df[label_col].unique():
+        class_df = df[df[label_col] == label]
+        n = min(len(class_df), max_per_class)
+        sampled_list.append(class_df.sample(n=n, random_state=42))
+
+    df = pd.concat(sampled_list, ignore_index=True)
+
+    print("After sampling:", df.shape)
     print(df[label_col].value_counts())
-
-    # ------------------------------------------------------
-    # Clean dataset
-    # ------------------------------------------------------
-    df.replace([np.inf, -np.inf], np.nan, inplace=True)
-    df.dropna(inplace=True)
-
-    print("\nAfter cleaning:", df.shape)
-
-    # ------------------------------------------------------
-    # Balanced Sampling
-    # ------------------------------------------------------
-    print("\nApplying balanced sampling...")
-
-    df = shuffle(df, random_state=42)
-
-    def safe_sample(group):
-        n = min(len(group), max_per_class)
-        return group.sample(n=n, random_state=42)
-
-    df = df.groupby(label_col, group_keys=False).apply(safe_sample)
-
-    print("\nAfter balanced sampling:", df.shape)
-    print(df[label_col].value_counts())
-
-    # Rename safely to standard name
-    df.rename(columns={label_col: "Label"}, inplace=True)
 
     return df
 
