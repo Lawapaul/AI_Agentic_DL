@@ -1,12 +1,14 @@
 """
-Data loading and preprocessing module for CICIDS2017 dataset.
+CICIDS2017 Data Loading & Preprocessing Module
 
-This module handles:
-1. Multi-CSV dataset loading
-2. Strict preprocessing (academic compliant)
-3. Balanced 500k sampling
-4. Train-test split
-5. Reshaping for 1D CNN
+Features:
+1. Multi-CSV automatic merging
+2. Strict academic preprocessing
+3. Optional balanced sampling
+4. Optional full dataset usage
+5. GPU-optimized float32 casting
+6. Clean train-test split
+7. 1D reshape for DL models
 """
 
 import os
@@ -17,27 +19,37 @@ from sklearn.model_selection import train_test_split
 
 
 class IDSDataLoader:
-    """Handles loading and preprocessing of CICIDS2017 dataset."""
+    """
+    Handles loading and preprocessing of CICIDS2017 dataset.
+    """
 
-    def __init__(self, test_size=0.2, random_state=42):
+    def __init__(
+        self,
+        test_size=0.2,
+        random_state=42,
+        balanced_total_samples=500000,   # Set None for full dataset
+    ):
         self.test_size = test_size
         self.random_state = random_state
+        self.balanced_total_samples = balanced_total_samples
+
         self.label_encoder = None
         self.scaler = None
         self.feature_names = None
         self.label_mapping = None
 
     # ============================================================
-    # LOAD CICIDS2017 (ALL CSV FILES)
+    # LOAD ALL CSV FILES
     # ============================================================
     def load_dataset(self):
 
         print("Loading CICIDS2017 dataset...")
 
         possible_paths = [
+            "/kaggle/input/ids-intrusion-csv",
             "/kaggle/input/cicids2017",
+            "/content/ids-intrusion-csv",
             "/content/cicids2017",
-            os.path.expanduser("~/.cache/kagglehub/datasets/cicids2017")
         ]
 
         dataset_path = None
@@ -47,28 +59,32 @@ class IDSDataLoader:
                 csv_files = [f for f in os.listdir(path) if f.endswith(".csv")]
                 if csv_files:
                     dataset_path = path
-                    print(f"Found dataset at: {path}")
                     break
 
         if dataset_path is None:
             raise FileNotFoundError(
-                "CICIDS2017 dataset not found. Download it using kagglehub."
+                "CICIDS dataset not found. Please download it first."
             )
 
-        csv_files = [f for f in os.listdir(dataset_path) if f.endswith(".csv")]
+        print(f"Dataset path: {dataset_path}")
+
+        csv_files = [
+            os.path.join(dataset_path, f)
+            for f in os.listdir(dataset_path)
+            if f.endswith(".csv")
+        ]
 
         print(f"Found {len(csv_files)} CSV files")
-        print("Merging CSV files...")
+        print("Merging files...")
 
         df_list = []
         for file in csv_files:
-            file_path = os.path.join(dataset_path, file)
-            print(f"Loading {file}")
-            df_list.append(pd.read_csv(file_path, low_memory=False))
+            print("Loading:", file)
+            df_list.append(pd.read_csv(file, low_memory=False))
 
         df = pd.concat(df_list, ignore_index=True)
 
-        print(f"Merged dataset shape: {df.shape}")
+        print("Merged dataset shape:", df.shape)
         return df
 
     # ============================================================
@@ -78,45 +94,37 @@ class IDSDataLoader:
 
         print("\n=== Starting Preprocessing ===")
 
-        # Step 1: Separate label
-        if 'Label' in df.columns:
-            label_col = 'Label'
-        else:
-            label_col = df.columns[-1]
+        # 1️⃣ Separate label
+        label_col = "Label" if "Label" in df.columns else df.columns[-1]
 
-        y = df[label_col].copy()
+        y = df[label_col]
         X = df.drop(columns=[label_col])
 
-        print(f"Samples: {len(y)}")
-        print(f"Initial feature count: {X.shape[1]}")
-        print(f"Unique attack types: {y.nunique()}")
-        print("Attack distribution:\n", y.value_counts())
+        print("Initial samples:", len(y))
+        print("Initial features:", X.shape[1])
+        print("Unique classes:", y.nunique())
 
-        # Step 2: Convert features to numeric
-        print("\nConverting features to numeric...")
+        # 2️⃣ Convert to numeric
         for col in X.columns:
-            X[col] = pd.to_numeric(X[col], errors='coerce')
+            X[col] = pd.to_numeric(X[col], errors="coerce")
 
-        # Step 3: Drop fully-NaN columns
-        X = X.dropna(axis=1, how='all')
-        print("Feature count after drop:", X.shape[1])
+        # 3️⃣ Remove fully NaN columns
+        X = X.dropna(axis=1, how="all")
 
-        # Step 4: Drop NaN rows
+        # 4️⃣ Remove NaN rows
         valid_idx = X.dropna().index
         X = X.loc[valid_idx]
         y = y.loc[valid_idx]
 
-        print("After dropping NaN rows:", X.shape)
-
-        # Step 5: Replace infinity
+        # 5️⃣ Remove infinities
         X = X.replace([np.inf, -np.inf], np.nan)
         valid_mask = ~X.isna().any(axis=1)
         X = X[valid_mask]
         y = y[valid_mask]
 
-        print("After removing infinity rows:", X.shape)
+        print("After cleaning:", X.shape)
 
-        # Step 6: Clip extreme values
+        # 6️⃣ Clip extreme values
         for col in X.columns:
             lower = X[col].quantile(0.001)
             upper = X[col].quantile(0.999)
@@ -124,80 +132,84 @@ class IDSDataLoader:
 
         self.feature_names = X.columns.tolist()
 
-        # Step 7: Encode labels
-        print("\nEncoding labels...")
+        # 7️⃣ Encode labels
         self.label_encoder = LabelEncoder()
         y_encoded = self.label_encoder.fit_transform(y)
 
         self.label_mapping = {
-            idx: label for idx, label in enumerate(self.label_encoder.classes_)
+            idx: label
+            for idx, label in enumerate(self.label_encoder.classes_)
         }
 
         print("Label mapping:", self.label_mapping)
 
-        # Step 8: Scale features
-        print("\nScaling features...")
+        # 8️⃣ Scale features
         self.scaler = StandardScaler()
         X_scaled = self.scaler.fit_transform(X)
 
-        print(
-            f"Scaled: mean={X_scaled.mean():.4f}, std={X_scaled.std():.4f}"
-        )
+        # GPU optimization
+        X_scaled = X_scaled.astype(np.float32)
+        y_encoded = y_encoded.astype(np.int32)
+
+        print("Scaling complete.")
 
         # ============================================================
-        # STEP 9: BALANCED SAMPLING (500K TOTAL)
+        # OPTIONAL BALANCED SAMPLING
         # ============================================================
-        print("\nApplying balanced sampling (500k total)...")
+        if self.balanced_total_samples is not None:
 
-        df_balanced = pd.DataFrame(X_scaled)
-        df_balanced["label"] = y_encoded
+            print("\nApplying balanced sampling...")
 
-        num_classes = len(np.unique(y_encoded))
-        samples_per_class = 500000 // num_classes
+            df_bal = pd.DataFrame(X_scaled)
+            df_bal["label"] = y_encoded
 
-        print(f"Classes: {num_classes}")
-        print(f"Target per class: {samples_per_class}")
+            num_classes = len(np.unique(y_encoded))
+            samples_per_class = self.balanced_total_samples // num_classes
 
-        balanced_df = (
-            df_balanced.groupby("label", group_keys=False)
-            .apply(lambda x: x.sample(
-                min(len(x), samples_per_class),
-                random_state=42
-            ))
-        )
+            print("Classes:", num_classes)
+            print("Target per class:", samples_per_class)
 
-        print("Balanced dataset shape:", balanced_df.shape)
+            balanced_df = (
+                df_bal.groupby("label", group_keys=False)
+                .apply(
+                    lambda x: x.sample(
+                        min(len(x), samples_per_class),
+                        random_state=self.random_state,
+                    )
+                )
+            )
 
-        y_balanced = balanced_df["label"].values
-        X_balanced = balanced_df.drop(columns=["label"]).values
+            X_scaled = balanced_df.drop(columns=["label"]).values
+            y_encoded = balanced_df["label"].values
 
-        return X_balanced, y_balanced
+            print("Balanced dataset shape:", X_scaled.shape)
+
+        return X_scaled, y_encoded
 
     # ============================================================
     # SPLIT
     # ============================================================
-    def train_test_split_data(self, X, y):
+    def split(self, X, y):
 
-        print("\nSplitting train/test...")
+        print("\nSplitting dataset...")
+
         X_train, X_test, y_train, y_test = train_test_split(
             X,
             y,
             test_size=self.test_size,
             random_state=self.random_state,
-            stratify=y
+            stratify=y,
         )
 
-        print("Train:", X_train.shape)
-        print("Test:", X_test.shape)
+        print("Train shape:", X_train.shape)
+        print("Test shape:", X_test.shape)
 
         return X_train, X_test, y_train, y_test
 
     # ============================================================
-    # RESHAPE FOR CNN
+    # RESHAPE FOR 1D MODELS
     # ============================================================
-    def reshape_for_cnn(self, X_train, X_test):
-
-        print("\nReshaping for CNN...")
+    def reshape(self, X_train, X_test):
 
         X_train = X_train.reshape(
             X_train.shape[0], X_train.shape[1], 1
@@ -205,9 +217,6 @@ class IDSDataLoader:
         X_test = X_test.reshape(
             X_test.shape[0], X_test.shape[1], 1
         )
-
-        print("Train shape:", X_train.shape)
-        print("Test shape:", X_test.shape)
 
         return X_train, X_test
 
@@ -218,37 +227,37 @@ class IDSDataLoader:
 
         df = self.load_dataset()
         X, y = self.preprocess(df)
-        X_train, X_test, y_train, y_test = self.train_test_split_data(X, y)
-        X_train, X_test = self.reshape_for_cnn(X_train, X_test)
+        X_train, X_test, y_train, y_test = self.split(X, y)
+        X_train, X_test = self.reshape(X_train, X_test)
 
         print("\n=== Preprocessing Complete ===")
 
         return {
-            'X_train': X_train,
-            'X_test': X_test,
-            'y_train': y_train,
-            'y_test': y_test,
-            'feature_names': self.feature_names,
-            'label_encoder': self.label_encoder,
-            'label_mapping': self.label_mapping,
-            'scaler': self.scaler,
-            'num_features': len(self.feature_names),
-            'num_classes': len(self.label_mapping)
+            "X_train": X_train,
+            "X_test": X_test,
+            "y_train": y_train,
+            "y_test": y_test,
+            "feature_names": self.feature_names,
+            "label_encoder": self.label_encoder,
+            "label_mapping": self.label_mapping,
+            "scaler": self.scaler,
+            "num_features": len(self.feature_names),
+            "num_classes": len(self.label_mapping),
         }
 
 
-def load_and_preprocess():
-    loader = IDSDataLoader()
+# Convenience function
+def load_and_preprocess(balanced_total_samples=500000):
+    loader = IDSDataLoader(
+        balanced_total_samples=balanced_total_samples
+    )
     return loader.load_and_preprocess()
 
 
 if __name__ == "__main__":
-    print("Testing CICIDS2017 Data Loader...")
+    print("Testing Loader...")
     data = load_and_preprocess()
 
-    print("\n=== Data Summary ===")
-    print("Training samples:", data['X_train'].shape[0])
-    print("Test samples:", data['X_test'].shape[0])
-    print("Features:", data['num_features'])
-    print("Classes:", data['num_classes'])
-    print("Label mapping:", data['label_mapping'])
+    print("\nTraining samples:", data["X_train"].shape[0])
+    print("Test samples:", data["X_test"].shape[0])
+    print("Classes:", data["num_classes"])
