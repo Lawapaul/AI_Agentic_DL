@@ -14,7 +14,10 @@ from models.trainer import IDSModelTrainer
 MODEL_LIST = ["cnn", "lstm", "gru", "hybrid", "resnet", "transformer"]
 
 
-def load_cicids2017_dataset(path="cicids2017/*.csv", max_per_class=30000):
+# ==========================================================
+# DATA LOADING
+# ==========================================================
+def load_cicids2017_dataset(path="cicids2017/*.csv", max_per_class=20000):
     print("\n=== Loading CICIDS2017 Dataset ===\n")
 
     files = glob.glob(path)
@@ -25,43 +28,75 @@ def load_cicids2017_dataset(path="cicids2017/*.csv", max_per_class=30000):
     for file in files:
         print("Loading:", file)
         temp = pd.read_csv(file)
+
+        # 🔥 Strip column whitespace immediately
+        temp.columns = temp.columns.str.strip()
+
         df_list.append(temp)
 
     df = pd.concat(df_list, ignore_index=True)
 
-    print("\nOriginal Shape:", df.shape)
-    print("Total Classes:", df["Label"].nunique())
-    print(df["Label"].value_counts())
-
-    # Clean column names
+    # 🔥 Ensure final cleanup
     df.columns = df.columns.str.strip()
 
-    # Remove inf and NaN
+    print("\nOriginal Shape:", df.shape)
+    print("Columns:", list(df.columns)[:5], "...")
+
+    # 🔥 Safe label detection
+    label_col = None
+    for col in df.columns:
+        if col.lower() == "label":
+            label_col = col
+            break
+
+    if label_col is None:
+        raise ValueError("Label column not found!")
+
+    print("Detected Label Column:", label_col)
+
+    print("\nTotal Classes:", df[label_col].nunique())
+    print(df[label_col].value_counts())
+
+    # ------------------------------------------------------
+    # Clean dataset
+    # ------------------------------------------------------
     df.replace([np.inf, -np.inf], np.nan, inplace=True)
     df.dropna(inplace=True)
 
     print("\nAfter cleaning:", df.shape)
 
-    # Balanced Sampling (≈500K total)
+    # ------------------------------------------------------
+    # Balanced Sampling
+    # ------------------------------------------------------
+    print("\nApplying balanced sampling...")
+
     df = shuffle(df, random_state=42)
 
-    df = df.groupby("Label", group_keys=False).apply(
-        lambda x: x.sample(min(len(x), max_per_class))
-    )
+    def safe_sample(group):
+        n = min(len(group), max_per_class)
+        return group.sample(n=n, random_state=42)
+
+    df = df.groupby(label_col, group_keys=False).apply(safe_sample)
 
     print("\nAfter balanced sampling:", df.shape)
-    print(df["Label"].value_counts())
+    print(df[label_col].value_counts())
+
+    # Rename safely to standard name
+    df.rename(columns={label_col: "Label"}, inplace=True)
 
     return df
 
 
+# ==========================================================
+# PREPROCESSING
+# ==========================================================
 def preprocess_data(df):
     print("\n=== Preprocessing Data ===\n")
 
     X = df.drop("Label", axis=1)
     y = df["Label"]
 
-    # Convert to numeric
+    # Convert to numeric safely
     X = X.apply(pd.to_numeric, errors="coerce")
     X.fillna(0, inplace=True)
 
@@ -69,6 +104,7 @@ def preprocess_data(df):
     le = LabelEncoder()
     y_encoded = le.fit_transform(y)
 
+    print("Number of classes:", len(le.classes_))
     print("Encoded classes:", dict(zip(le.classes_, range(len(le.classes_)))))
 
     # Scale features
@@ -84,7 +120,7 @@ def preprocess_data(df):
         random_state=42
     )
 
-    # Reshape for 1D models
+    # Reshape for 1D deep models
     X_train = X_train.reshape(X_train.shape[0], X_train.shape[1], 1)
     X_test = X_test.reshape(X_test.shape[0], X_test.shape[1], 1)
 
@@ -100,10 +136,13 @@ def preprocess_data(df):
     }
 
 
+# ==========================================================
+# EXPERIMENT
+# ==========================================================
 def run_experiment():
     print("\n=== MODEL COMPARISON EXPERIMENT (CICIDS2017) ===\n")
 
-    # Load & preprocess
+    # Load and preprocess
     df = load_cicids2017_dataset()
     data = preprocess_data(df)
 
@@ -124,7 +163,7 @@ def run_experiment():
             data["X_test"],
             data["y_test"],
             epochs=2,
-            batch_size=64  # reduced to prevent GPU OOM
+            batch_size=64  # safe for T4 GPU
         )
 
         train_time = time.time() - start_train
