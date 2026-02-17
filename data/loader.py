@@ -175,10 +175,39 @@ class IDSDataLoader:
         print("\nScaling features...")
         self.scaler = StandardScaler()
         X_scaled = self.scaler.fit_transform(X)
-        
+
         print(f"Features scaled: mean={X_scaled.mean():.4f}, std={X_scaled.std():.4f}")
-        
-        return X_scaled, y_encoded
+
+        # ============================================================
+        # STEP 8: Balanced Sampling (500k total)
+        # ============================================================
+
+        print("\nApplying balanced sampling (500k total)...")
+
+        df_balanced = pd.DataFrame(X_scaled)
+        df_balanced["label"] = y_encoded
+
+        num_classes = len(np.unique(y_encoded))
+        samples_per_class = 500000 // num_classes
+
+        print(f"Classes: {num_classes}")
+        print(f"Samples per class: {samples_per_class}")
+
+        balanced_df = (
+            df_balanced.groupby("label", group_keys=False)
+            .apply(lambda x: x.sample(
+                min(len(x), samples_per_class),
+                random_state=42
+            ))
+        )
+
+        print("Balanced dataset shape:", balanced_df.shape)
+
+        # Separate again
+        y_balanced = balanced_df["label"].values
+        X_balanced = balanced_df.drop(columns=["label"]).values
+
+        return X_balanced, y_balanced
     
     def train_test_split_data(self, X, y):
         """
