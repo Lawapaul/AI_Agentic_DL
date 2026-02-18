@@ -140,7 +140,7 @@ def run_experiment():
             data["y_train"],
             data["X_test"],
             data["y_test"],
-            epochs=2,
+            epochs=10,
             batch_size=64  # safe for T4 GPU
         )
 
