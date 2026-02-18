@@ -84,7 +84,7 @@ class IDSDataLoader:
 
         df = pd.concat(df_list, ignore_index=True)
 
-        print("Merged dataset shape:", df.shape)
+        print("Original shape:", df.shape)
         return df
 
     # ============================================================
@@ -154,35 +154,37 @@ class IDSDataLoader:
         print("Scaling complete.")
 
         # ============================================================
-        # OPTIONAL BALANCED SAMPLING
+        # BALANCED SAMPLING DISABLED (USE FULL DATASET)
         # ============================================================
-        if self.balanced_total_samples is not None:
+        print("Skipping balanced sampling... Using FULL dataset.")
 
-            print("\nApplying balanced sampling...")
-
-            df_bal = pd.DataFrame(X_scaled)
-            df_bal["label"] = y_encoded
-
-            num_classes = len(np.unique(y_encoded))
-            samples_per_class = self.balanced_total_samples // num_classes
-
-            print("Classes:", num_classes)
-            print("Target per class:", samples_per_class)
-
-            balanced_df = (
-                df_bal.groupby("label", group_keys=False)
-                .apply(
-                    lambda x: x.sample(
-                        min(len(x), samples_per_class),
-                        random_state=self.random_state,
-                    )
-                )
-            )
-
-            X_scaled = balanced_df.drop(columns=["label"]).values
-            y_encoded = balanced_df["label"].values
-
-            print("Balanced dataset shape:", X_scaled.shape)
+        # if self.balanced_total_samples is not None:
+        #
+        #     print("\nApplying balanced sampling...")
+        #
+        #     df_bal = pd.DataFrame(X_scaled)
+        #     df_bal["label"] = y_encoded
+        #
+        #     num_classes = len(np.unique(y_encoded))
+        #     samples_per_class = self.balanced_total_samples // num_classes
+        #
+        #     print("Classes:", num_classes)
+        #     print("Target per class:", samples_per_class)
+        #
+        #     balanced_df = (
+        #         df_bal.groupby("label", group_keys=False)
+        #         .apply(
+        #             lambda x: x.sample(
+        #                 min(len(x), samples_per_class),
+        #                 random_state=self.random_state,
+        #             )
+        #         )
+        #     )
+        #
+        #     X_scaled = balanced_df.drop(columns=["label"]).values
+        #     y_encoded = balanced_df["label"].values
+        #
+        #     print("Balanced dataset shape:", X_scaled.shape)
 
         return X_scaled, y_encoded
 
