@@ -112,9 +112,8 @@ class IDSDataLoader:
         print("Initial features:", X.shape[1])
         print("Unique classes:", y.nunique())
 
-        # 2️⃣ Convert to numeric
-        for col in X.columns:
-            X[col] = pd.to_numeric(X[col], errors="coerce")
+        # 2️⃣ Convert to numeric (vectorized)
+        X = X.apply(pd.to_numeric, errors="coerce")
 
         # 3️⃣ Remove fully NaN columns
         X = X.dropna(axis=1, how="all")
@@ -132,6 +131,7 @@ class IDSDataLoader:
 
         print("After cleaning:", X.shape)
 
+        print("Clipping extreme values (vectorized)...")
         lower = X.quantile(0.001)
         upper = X.quantile(0.999)
         X = X.clip(lower, upper, axis=1)
