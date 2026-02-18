@@ -102,7 +102,6 @@ class IDSDataLoader:
 
         print("\n=== Starting Preprocessing ===")
 
-        # 1️⃣ Separate label
         label_col = "Label" if "Label" in df.columns else df.columns[-1]
 
         y = df[label_col]
@@ -112,85 +111,43 @@ class IDSDataLoader:
         print("Initial features:", X.shape[1])
         print("Unique classes:", y.nunique())
 
-        # 2️⃣ Convert to numeric (vectorized)
+        # Fast numeric conversion
         X = X.apply(pd.to_numeric, errors="coerce")
 
-        # 3️⃣ Remove fully NaN columns
+        # Drop fully NaN columns
         X = X.dropna(axis=1, how="all")
 
-        # 4️⃣ Remove NaN rows
-        valid_idx = X.dropna().index
-        X = X.loc[valid_idx]
-        y = y.loc[valid_idx]
-
-        # 5️⃣ Remove infinities
+        # Remove rows with NaN or Inf in ONE step (fast)
         X = X.replace([np.inf, -np.inf], np.nan)
-        valid_mask = ~X.isna().any(axis=1)
-        X = X[valid_mask]
-        y = y[valid_mask]
+        mask = ~X.isna().any(axis=1)
+        X = X[mask]
+        y = y[mask]
 
         print("After cleaning:", X.shape)
 
-        print("Clipping extreme values (vectorized)...")
-        lower = X.quantile(0.001)
-        upper = X.quantile(0.999)
-        X = X.clip(lower, upper, axis=1)
+        # 🔥 REMOVE QUANTILE CLIPPING (very slow)
+        # You don't need it for deep learning models.
 
         self.feature_names = X.columns.tolist()
 
-        # 7️⃣ Encode labels
+        # Encode labels
         self.label_encoder = LabelEncoder()
         y_encoded = self.label_encoder.fit_transform(y)
 
         self.label_mapping = {
-            idx: label
-            for idx, label in enumerate(self.label_encoder.classes_)
+            idx: label for idx, label in enumerate(self.label_encoder.classes_)
         }
 
-        print("Label mapping:", self.label_mapping)
+        print("Label mapping done.")
 
-        # 8️⃣ Scale features
+        # Scaling
         self.scaler = StandardScaler()
         X_scaled = self.scaler.fit_transform(X)
 
-        # GPU optimization
         X_scaled = X_scaled.astype(np.float32)
         y_encoded = y_encoded.astype(np.int32)
 
         print("Scaling complete.")
-
-        # ============================================================
-        # BALANCED SAMPLING DISABLED (USE FULL DATASET)
-        # ============================================================
-        print("Skipping balanced sampling... Using FULL dataset.")
-
-        # if self.balanced_total_samples is not None:
-        #
-        #     print("\nApplying balanced sampling...")
-        #
-        #     df_bal = pd.DataFrame(X_scaled)
-        #     df_bal["label"] = y_encoded
-        #
-        #     num_classes = len(np.unique(y_encoded))
-        #     samples_per_class = self.balanced_total_samples // num_classes
-        #
-        #     print("Classes:", num_classes)
-        #     print("Target per class:", samples_per_class)
-        #
-        #     balanced_df = (
-        #         df_bal.groupby("label", group_keys=False)
-        #         .apply(
-        #             lambda x: x.sample(
-        #                 min(len(x), samples_per_class),
-        #                 random_state=self.random_state,
-        #             )
-        #         )
-        #     )
-        #
-        #     X_scaled = balanced_df.drop(columns=["label"]).values
-        #     y_encoded = balanced_df["label"].values
-        #
-        #     print("Balanced dataset shape:", X_scaled.shape)
 
         return X_scaled, y_encoded
 
