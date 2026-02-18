@@ -6,12 +6,21 @@ from sklearn.metrics import f1_score
 
 TOP_MODELS = ["hybrid", "resnet"]
 
-def run_full_training():
+def run_full_training(df):
 
     print("\n=== FULL DATASET TRAINING (NO SAMPLING) ===\n")
 
     loader = IDSDataLoader()
-    data = loader.load_and_preprocess()
+    X, y = loader.preprocess(df)   # use already merged df
+    X_train, X_test, y_train, y_test = loader.split(X, y)
+    X_train, X_test = loader.reshape(X_train, X_test)
+
+    data = {
+        "X_train": X_train,
+        "X_test": X_test,
+        "y_train": y_train,
+        "y_test": y_test
+    }
 
     print("Train size:", data['X_train'].shape)
     print("Test size:", data['X_test'].shape)
@@ -57,4 +66,6 @@ def run_full_training():
     print("\nResults saved successfully.")
 
 if __name__ == "__main__":
-    run_full_training()
+    raise RuntimeError(
+        "Pass a pre-merged dataframe to run_full_training(df) to avoid re-reading CSV files."
+    )
