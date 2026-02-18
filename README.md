@@ -35,7 +35,7 @@ python pipeline.py --samples 5
 
 ## 📋 Features
 
-- ✅ **1D CNN Model** - Deep learning for intrusion detection (99%+ accuracy)
+- ✅ **Hybrid CNN-LSTM Model** - Selected as best model after comparison experiments
 - ✅ **SHAP Explainability** - Feature importance analysis
 - ✅ **HuggingFace LLM** - Natural language explanations (Flan-T5)
 - ✅ **Risk Scoring** - Automated threat assessment
@@ -44,7 +44,7 @@ python pipeline.py --samples 5
 ## 🏗️ Architecture
 
 ```
-Data → Preprocessing → 1D CNN → SHAP → Risk Scorer → LLM → Decision Agent
+Data → Preprocessing → Hybrid CNN-LSTM → SHAP → Risk Scorer → LLM → Decision Agent
 ```
 
 **Pipeline Components:**

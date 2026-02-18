@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 class IDSModelTrainer:
     """Handles training and evaluation of IDS models dynamically."""
 
-    def __init__(self, model_type="cnn", model_save_path='saved_models/ids_model.keras'):
+    def __init__(self, model_type="hybrid", model_save_path='saved_models/ids_model.keras'):
         """
         Initialize trainer with model type.
 
@@ -47,19 +47,19 @@ class IDSModelTrainer:
         print(f"Batch size: {batch_size}")
         print(f"Max epochs: {epochs}")
 
-        # Ensure correct shape
-        if len(X_train.shape) == 2:
-            X_train = X_train.reshape(X_train.shape[0], X_train.shape[1], 1)
-            X_test = X_test.reshape(X_test.shape[0], X_test.shape[1], 1)
+        # Ensure LSTM/CNN-compatible 3D input shape
+        X_train = X_train.reshape(X_train.shape[0], X_train.shape[1], 1)
+        X_test = X_test.reshape(X_test.shape[0], X_test.shape[1], 1)
 
         print("Input shape after reshape:", X_train.shape)
 
         num_classes = len(np.unique(y_train))
+        input_shape = (X_train.shape[1], 1)
 
         # Build model dynamically
         self.model = get_model(
-            model_type=self.model_type,
-            input_shape=(X_train.shape[1], 1),
+            model_name=self.model_type,
+            input_shape=input_shape,
             num_classes=num_classes
         )
 

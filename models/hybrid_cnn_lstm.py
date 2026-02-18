@@ -1,7 +1,7 @@
 import tensorflow as tf
 from tensorflow.keras import layers, models
 
-def build_hybrid_model(input_shape, num_classes):
+def build_model(input_shape, num_classes):
 
     inputs = layers.Input(shape=input_shape)
 

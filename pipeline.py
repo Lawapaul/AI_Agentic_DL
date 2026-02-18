@@ -27,7 +27,7 @@ class IDSPipeline:
 
     def __init__(
         self,
-        model_type="cnn",
+        model_type="hybrid",
         model_path="saved_models/ids_model.keras",
         use_llm=True,
         llm_model="google/flan-t5-base",
@@ -300,7 +300,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--samples", type=int, default=5)
     parser.add_argument("--retrain", action="store_true")
-    parser.add_argument("--model", type=str, default="cnn")
+    parser.add_argument("--model", type=str, default="hybrid")
     parser.add_argument("--no-llm", action="store_true")
 
     args = parser.parse_args()
