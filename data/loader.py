@@ -41,31 +41,34 @@ class IDSDataLoader:
     # ============================================================
     # LOAD ALL CSV FILES
     # ============================================================
+    # ============================================================
+# LOAD ALL CSV FILES
+# ============================================================
     def load_dataset(self):
 
         print("Loading CICIDS2017 dataset...")
 
-        possible_paths = [
-        "/content/AI_Agentic_DL/cicids2017", 
-        "/content/cicids2017",
-        "/kaggle/input/ids-intrusion-csv",
-        "/kaggle/input/cicids2017",
-        "/content/ids-intrusion-csv",
+        # Primary expected path (Colab project structure)
+        dataset_path = os.path.join(os.getcwd(), "data", "raw", "cicids2017")
+
+        # Fallback paths (in case someone runs differently)
+        fallback_paths = [
+            os.path.join(os.getcwd(), "cicids2017"),
+            "/content/cicids2017",
+            "/content/data/raw/cicids2017",
         ]
 
-
-        dataset_path = None
-
-        for path in possible_paths:
-            if os.path.exists(path):
-                csv_files = [f for f in os.listdir(path) if f.endswith(".csv")]
-                if csv_files:
+        if not os.path.exists(dataset_path):
+            for path in fallback_paths:
+                if os.path.exists(path):
                     dataset_path = path
                     break
 
-        if dataset_path is None:
+        if not os.path.exists(dataset_path):
             raise FileNotFoundError(
-                "CICIDS dataset not found. Please download it first."
+                f"CICIDS dataset not found. Checked:\n"
+                f" - {os.path.join(os.getcwd(), 'data/raw/cicids2017')}\n"
+                f" - fallback locations"
             )
 
         print(f"Dataset path: {dataset_path}")
@@ -75,6 +78,9 @@ class IDSDataLoader:
             for f in os.listdir(dataset_path)
             if f.endswith(".csv")
         ]
+
+        if len(csv_files) == 0:
+            raise FileNotFoundError("No CSV files found in dataset directory.")
 
         print(f"Found {len(csv_files)} CSV files")
         print("Merging files...")
