@@ -46,11 +46,13 @@ class IDSDataLoader:
         print("Loading CICIDS2017 dataset...")
 
         possible_paths = [
-            "/kaggle/input/ids-intrusion-csv",
-            "/kaggle/input/cicids2017",
-            "/content/ids-intrusion-csv",
-            "/content/cicids2017",
+        "/content/AI_Agentic_DL/cicids2017", 
+        "/content/cicids2017",
+        "/kaggle/input/ids-intrusion-csv",
+        "/kaggle/input/cicids2017",
+        "/content/ids-intrusion-csv",
         ]
+
 
         dataset_path = None
 
