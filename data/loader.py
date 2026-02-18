@@ -132,11 +132,9 @@ class IDSDataLoader:
 
         print("After cleaning:", X.shape)
 
-        # 6️⃣ Clip extreme values
-        for col in X.columns:
-            lower = X[col].quantile(0.001)
-            upper = X[col].quantile(0.999)
-            X[col] = X[col].clip(lower, upper)
+        lower = X.quantile(0.001)
+        upper = X.quantile(0.999)
+        X = X.clip(lower, upper, axis=1)
 
         self.feature_names = X.columns.tolist()
 
