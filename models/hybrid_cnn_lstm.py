@@ -15,7 +15,8 @@ def build_model(input_shape, num_classes):
     x = layers.MaxPooling1D(2)(x)
 
     # LSTM Block
-    x = layers.LSTM(128)(x)
+    x = layers.Flatten()(x)
+
 
     x = layers.Dropout(0.3)(x)
 
