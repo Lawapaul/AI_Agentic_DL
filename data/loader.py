@@ -125,8 +125,47 @@ class IDSDataLoader:
 
         print("After cleaning:", X.shape)
 
-        # 🔥 REMOVE QUANTILE CLIPPING (very slow)
-        # You don't need it for deep learning models.
+        # ============================================================
+        # BALANCED SAMPLING
+        # ============================================================
+        if self.balanced_total_samples is not None:
+
+            print("\nApplying balanced sampling...")
+
+            temp_df = X.copy()
+            temp_df["Label"] = y
+
+            class_counts = temp_df["Label"].value_counts()
+            num_classes = len(class_counts)
+
+            samples_per_class = self.balanced_total_samples // num_classes
+
+            balanced_list = []
+
+            for label in class_counts.index:
+                class_subset = temp_df[temp_df["Label"] == label]
+                n_samples = min(samples_per_class, len(class_subset))
+
+                balanced_list.append(
+                    class_subset.sample(
+                        n=n_samples,
+                        random_state=self.random_state
+                    )
+                )
+
+            balanced_df = pd.concat(balanced_list)
+
+            # Shuffle
+            balanced_df = balanced_df.sample(
+                frac=1,
+                random_state=self.random_state
+            )
+
+            y = balanced_df["Label"]
+            X = balanced_df.drop(columns=["Label"])
+
+            print("After balanced sampling:", X.shape)
+
 
         self.feature_names = X.columns.tolist()
 
