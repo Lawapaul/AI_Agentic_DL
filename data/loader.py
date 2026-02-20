@@ -27,7 +27,7 @@ class IDSDataLoader:
         self,
         test_size=0.2,
         random_state=42,
-        balanced_total_samples=500000,   # Set None for full dataset
+        balanced_total_samples=None,   # Set None for full dataset
     ):
         self.test_size = test_size
         self.random_state = random_state
@@ -251,7 +251,7 @@ class IDSDataLoader:
 
 
 # Convenience function
-def load_and_preprocess(balanced_total_samples=500000):
+def load_and_preprocess(balanced_total_samples=None):
     loader = IDSDataLoader(
         balanced_total_samples=balanced_total_samples
     )
