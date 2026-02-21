@@ -7,7 +7,7 @@ Now supports multiple architectures:
 - (future: resnet, lstm, gru, transformer)
 
 Sequential pipeline:
-DL → SHAP → LLM → Risk → Agent
+DL → Feature Gradients → LLM → Risk → Agent
 """
 
 import os
@@ -17,7 +17,7 @@ from datetime import datetime
 
 from data.loader import IDSDataLoader
 from models.trainer import IDSModelTrainer
-from explainability.shap_explainer import create_shap_explainer
+from explainability.feature_gradient_explainer import create_feature_gradient_explainer
 from explainability.risk_scorer import create_risk_scorer
 from llm.huggingface_client import create_huggingface_explainer
 from agent.decision_agent import create_decision_agent
@@ -44,7 +44,7 @@ class IDSPipeline:
 
         self.data_loader = None
         self.trainer = None
-        self.shap_explainer = None
+        self.fg_explainer = None
         self.risk_scorer = None
         self.llm_explainer = None
         self.decision_agent = None
@@ -128,23 +128,20 @@ class IDSPipeline:
         print("\n✓ Model ready for inference")
 
     # =====================================================
-    # STEP 3: SHAP
+    # STEP 3: FEATURE GRADIENTS
     # =====================================================
 
     def initialize_explainability(self, background_samples=100):
 
-        print("\n[STEP 3/6] Initializing Explainability (SHAP)")
+        print("\n[STEP 3/6] Initializing Explainability (Feature Gradients)")
         print("-" * 70)
 
-        background_data = self.data["X_train"][:background_samples]
-
-        self.shap_explainer = create_shap_explainer(
+        self.fg_explainer = create_feature_gradient_explainer(
             self.trainer.model,
-            background_data,
             self.data["feature_names"],
         )
 
-        print("\n✓ SHAP explainer initialized")
+        print("\n✓ Feature Gradient explainer initialized")
 
     # =====================================================
     # STEP 4: LLM
@@ -236,14 +233,14 @@ class IDSPipeline:
         confidence = float(predictions[0][predicted_class])
         attack_type = self.label_mapping[predicted_class]
 
-        shap_explanation = self.shap_explainer.explain_prediction(
+        fg_explanation = self.fg_explainer.explain_prediction(
             X_sample, top_k=10
         )
 
         risk_result = self.risk_scorer.compute_risk_score(
             attack_type,
             confidence,
-            shap_explanation["total_abs_shap"],
+            fg_explanation["total_abs_importance"],
         )
 
         llm_explanation = None
@@ -253,7 +250,7 @@ class IDSPipeline:
                 confidence,
                 risk_result["risk_score"],
                 risk_result["severity_category"],
-                shap_explanation["top_features"],
+                fg_explanation["top_features"],
             )
 
         decision = self.decision_agent.decide_action(

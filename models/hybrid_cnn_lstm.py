@@ -17,6 +17,7 @@ def build_model(input_shape, num_classes):
     # LSTM Block
     x = layers.LSTM(128)(x)
 
+
     x = layers.Dropout(0.3)(x)
 
     outputs = layers.Dense(num_classes, activation='softmax')(x)
