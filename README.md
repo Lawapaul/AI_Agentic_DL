@@ -130,8 +130,9 @@ ids-explainable-agent/
 │   └── trainer.py             # Model training
 ├── explainability/
 │   ├── feature_gradient_explainer.py  # FG explanations
-│   ├── graph_correlation.py   # Phase 3 attack correlation graph
 │   └── risk_scorer.py         # Risk scoring
+├── graph_correlation/
+│   └── graph_correlation.py   # Phase 3 attack correlation graph
 ├── llm/
 │   └── huggingface_client.py  # HuggingFace LLM client
 ├── agent/

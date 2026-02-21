@@ -18,7 +18,7 @@ from datetime import datetime
 from data.loader import IDSDataLoader
 from models.trainer import IDSModelTrainer
 from explainability.feature_gradient_explainer import create_feature_gradient_explainer
-from explainability.graph_correlation import (
+from graph_correlation import (
     build_attack_graph,
     build_attack_profiles,
     get_top_correlated_pairs,
