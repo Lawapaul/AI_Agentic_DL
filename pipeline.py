@@ -18,6 +18,12 @@ from datetime import datetime
 from data.loader import IDSDataLoader
 from models.trainer import IDSModelTrainer
 from explainability.feature_gradient_explainer import create_feature_gradient_explainer
+from explainability.graph_correlation import (
+    build_attack_graph,
+    build_attack_profiles,
+    get_top_correlated_pairs,
+    validate_attack_graph,
+)
 from explainability.risk_scorer import create_risk_scorer
 from llm.huggingface_client import create_huggingface_explainer
 from agent.decision_agent import create_decision_agent
@@ -48,6 +54,7 @@ class IDSPipeline:
         self.risk_scorer = None
         self.llm_explainer = None
         self.decision_agent = None
+        self.attack_graph = None
 
         self.data = None
         self.label_mapping = None
@@ -143,6 +150,42 @@ class IDSPipeline:
 
         print("\n✓ Feature Gradient explainer initialized")
 
+    def build_graph_correlation_layer(self, max_samples=500, threshold=0.7):
+
+        print("\n[STEP 3.1/6] Building Graph Correlation Layer")
+        print("-" * 70)
+
+        x_eval = self.data["X_test"][:max_samples]
+        y_eval = self.data["y_test"][:max_samples]
+
+        class_profiles = build_attack_profiles(
+            X_eval=x_eval,
+            y_eval=y_eval,
+            fg_importance=self.fg_explainer.feature_importance,
+        )
+
+        self.attack_graph = build_attack_graph(
+            class_profiles=class_profiles,
+            threshold=threshold,
+        )
+
+        validate_attack_graph(self.attack_graph)
+
+        nodes = self.attack_graph.number_of_nodes()
+        edges = self.attack_graph.number_of_edges()
+        print(f"Graph nodes: {nodes}")
+        print(f"Graph edges: {edges}")
+
+        top_pairs = get_top_correlated_pairs(self.attack_graph, top_k=5)
+        if top_pairs:
+            print("Top correlated class pairs:")
+            for a, b, w in top_pairs:
+                a_name = self.label_mapping.get(a, str(a))
+                b_name = self.label_mapping.get(b, str(b))
+                print(f"  - {a_name} <-> {b_name}: {w:.4f}")
+        else:
+            print("No correlated pairs above threshold.")
+
     # =====================================================
     # STEP 4: LLM
     # =====================================================
@@ -200,6 +243,7 @@ class IDSPipeline:
         self.load_data()
         self.train_or_load_model(force_retrain=force_retrain)
         self.initialize_explainability()
+        self.build_graph_correlation_layer()
         self.initialize_llm()
         self.initialize_risk_scorer()
         self.initialize_agent()
