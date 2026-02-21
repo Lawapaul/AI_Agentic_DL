@@ -1,1 +1,1 @@
-# Explainability module (SHAP and risk scoring)
+# Explainability module (Feature Gradients and risk scoring)
