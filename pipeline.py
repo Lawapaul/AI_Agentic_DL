@@ -27,6 +27,12 @@ from graph_correlation import (
 from explainability.risk_scorer import create_risk_scorer
 from llm.huggingface_client import create_huggingface_explainer
 from agent.decision_agent import create_decision_agent
+from memory import (
+    EmbeddingKNNMemory,
+    FeatureGradientKNNMemory,
+    GraphAwareMemory,
+    PrototypeMemory,
+)
 
 
 class IDSPipeline:
@@ -37,6 +43,9 @@ class IDSPipeline:
         model_path="saved_models/ids_model.keras",
         use_llm=True,
         llm_model="google/flan-t5-base",
+        memory_strategy="embedding_knn",
+        memory_top_k=5,
+        use_memory=True,
     ):
         """
         Args:
@@ -47,6 +56,9 @@ class IDSPipeline:
         self.model_path = model_path
         self.use_llm = use_llm
         self.llm_model = llm_model
+        self.use_memory = use_memory
+        self.memory_strategy = memory_strategy
+        self.memory_top_k = int(memory_top_k)
 
         self.data_loader = None
         self.trainer = None
@@ -55,6 +67,7 @@ class IDSPipeline:
         self.llm_explainer = None
         self.decision_agent = None
         self.attack_graph = None
+        self.memory_retriever = None
 
         self.data = None
         self.label_mapping = None
@@ -72,7 +85,8 @@ class IDSPipeline:
         print("\n[STEP 1/6] Loading and Preprocessing Data")
         print("-" * 70)
 
-        self.data_loader = IDSDataLoader()
+        # Phase 4 requirement: full dataset loading by default (no balanced sampling).
+        self.data_loader = IDSDataLoader(balanced_total_samples=None)
         self.data = self.data_loader.load_and_preprocess()
         self.label_mapping = self.data["label_mapping"]
 
@@ -90,6 +104,10 @@ class IDSPipeline:
 
         print("\n[STEP 2/6] Deep Learning Model")
         print("-" * 70)
+        print(f"Detected device: {IDSModelTrainer.detect_device()}")
+
+        if batch_size is None:
+            batch_size = IDSModelTrainer.recommended_batch_size()
 
         model_exists = os.path.exists(self.model_path)
 
@@ -186,6 +204,64 @@ class IDSPipeline:
         else:
             print("No correlated pairs above threshold.")
 
+    def _compute_fg_matrix(self, X):
+        """Compute per-sample FG vectors for memory retrieval."""
+        fg_vectors = []
+        total = X.shape[0]
+        for i in range(total):
+            fg_vectors.append(self.fg_explainer.feature_importance(X[i]))
+            if (i + 1) % 500 == 0:
+                print(f"Computed FG vectors: {i + 1}/{total}")
+        return np.asarray(fg_vectors, dtype=np.float32)
+
+    def initialize_memory_retrieval(self, embedding_batch_size=None):
+        """
+        Phase 4 retrieval-only memory layer.
+        This does not alter prediction outputs or risk scoring.
+        """
+        print("\n[STEP 3.2/6] Initializing Memory Retrieval")
+        print("-" * 70)
+
+        if not self.use_memory:
+            self.memory_retriever = None
+            print("Memory retrieval disabled")
+            return
+
+        if embedding_batch_size is None:
+            embedding_batch_size = IDSModelTrainer.recommended_batch_size()
+
+        train_embeddings = self.trainer.extract_embeddings(
+            self.data["X_train"],
+            batch_size=embedding_batch_size,
+        )
+        train_labels = self.data["y_train"]
+
+        strategy = self.memory_strategy.lower().strip()
+        if strategy == "embedding_knn":
+            self.memory_retriever = EmbeddingKNNMemory(top_k=self.memory_top_k)
+            self.memory_retriever.fit(embeddings=train_embeddings, labels=train_labels)
+        elif strategy == "fg_knn":
+            train_fg = self._compute_fg_matrix(self.data["X_train"])
+            self.memory_retriever = FeatureGradientKNNMemory(top_k=self.memory_top_k)
+            self.memory_retriever.fit(fg_vectors=train_fg, labels=train_labels)
+        elif strategy == "prototype":
+            self.memory_retriever = PrototypeMemory(top_k=self.memory_top_k)
+            self.memory_retriever.fit(embeddings=train_embeddings, labels=train_labels)
+        elif strategy == "graph_aware":
+            self.memory_retriever = GraphAwareMemory(top_k=self.memory_top_k)
+            self.memory_retriever.fit(
+                embeddings=train_embeddings,
+                labels=train_labels,
+                attack_graph=self.attack_graph,
+            )
+        else:
+            raise ValueError(
+                "Unknown memory strategy. Use one of: "
+                "embedding_knn, fg_knn, prototype, graph_aware"
+            )
+
+        print(f"\n✓ Memory retrieval initialized: {strategy}")
+
     # =====================================================
     # STEP 4: LLM
     # =====================================================
@@ -244,6 +320,7 @@ class IDSPipeline:
         self.train_or_load_model(force_retrain=force_retrain)
         self.initialize_explainability()
         self.build_graph_correlation_layer()
+        self.initialize_memory_retrieval()
         self.initialize_llm()
         self.initialize_risk_scorer()
         self.initialize_agent()
@@ -280,6 +357,25 @@ class IDSPipeline:
         fg_explanation = self.fg_explainer.explain_prediction(
             X_sample, top_k=10
         )
+        sample_fg = np.asarray(
+            fg_explanation["importance_values_all"],
+            dtype=np.float32,
+        )
+        sample_embedding = self.trainer.extract_embeddings(X_sample)
+
+        memory_context = {
+            "top_k_labels": [],
+            "similarity_scores": [],
+            "class_distribution": {},
+            "avg_similarity": 0.0,
+        }
+        if self.memory_retriever is not None:
+            memory_context = self.memory_retriever.retrieve(
+                query_embedding=sample_embedding[0],
+                query_fg=sample_fg,
+                predicted_class=predicted_class,
+                top_k=self.memory_top_k,
+            )
 
         risk_result = self.risk_scorer.compute_risk_score(
             attack_type,
@@ -310,6 +406,7 @@ class IDSPipeline:
             "true_label": true_label,
             "attack_type": attack_type,
             "confidence": confidence,
+            "memory_context": memory_context,
             "risk_score": risk_result["risk_score"],
             "severity": risk_result["severity_category"],
             "agent_decision": decision["action"],
@@ -343,12 +440,23 @@ def main():
     parser.add_argument("--retrain", action="store_true")
     parser.add_argument("--model", type=str, default="hybrid")
     parser.add_argument("--no-llm", action="store_true")
+    parser.add_argument(
+        "--memory-strategy",
+        type=str,
+        default="embedding_knn",
+        choices=["embedding_knn", "fg_knn", "prototype", "graph_aware"],
+    )
+    parser.add_argument("--memory-top-k", type=int, default=5)
+    parser.add_argument("--no-memory", action="store_true")
 
     args = parser.parse_args()
 
     pipeline = IDSPipeline(
         model_type=args.model,
         use_llm=not args.no_llm,
+        memory_strategy=args.memory_strategy,
+        memory_top_k=args.memory_top_k,
+        use_memory=not args.no_memory,
     )
 
     results = pipeline.run_pipeline(
