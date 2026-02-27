@@ -17,7 +17,6 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 
-from data.loader import IDSDataLoader
 from explainability.feature_gradient_explainer import create_feature_gradient_explainer
 from graph_correlation import build_attack_graph, build_attack_profiles, validate_attack_graph
 from memory import (
@@ -149,6 +148,42 @@ def validate_fg_vectors(train_fg: np.ndarray, test_fg: np.ndarray) -> None:
         raise ValueError("All test FG vectors are zero.")
 
 
+def _ensure_feature_matrix(X: np.ndarray, name: str) -> np.ndarray:
+    arr = np.asarray(X, dtype=np.float32)
+    if arr.ndim == 3 and arr.shape[-1] == 1:
+        arr = arr[..., 0]
+    if arr.ndim != 2:
+        raise ValueError(f"{name} must be 2D (N, F) or 3D (N, F, 1). Got shape={arr.shape}")
+    return arr
+
+
+def load_processed_data(processed_path: str) -> Dict[str, object]:
+    X_train = np.load(os.path.join(processed_path, "X_train.npy"))
+    X_test = np.load(os.path.join(processed_path, "X_test.npy"))
+    y_train = np.load(os.path.join(processed_path, "y_train.npy"))
+    y_test = np.load(os.path.join(processed_path, "y_test.npy"))
+
+    X_train = _ensure_feature_matrix(X_train, "X_train")
+    X_test = _ensure_feature_matrix(X_test, "X_test")
+    y_train = np.asarray(y_train, dtype=np.int32).reshape(-1)
+    y_test = np.asarray(y_test, dtype=np.int32).reshape(-1)
+
+    if X_train.shape[0] != y_train.shape[0]:
+        raise ValueError("X_train and y_train sample counts do not match.")
+    if X_test.shape[0] != y_test.shape[0]:
+        raise ValueError("X_test and y_test sample counts do not match.")
+    if X_train.shape[1] != X_test.shape[1]:
+        raise ValueError("X_train and X_test feature counts do not match.")
+
+    return {
+        "X_train": X_train,
+        "X_test": X_test,
+        "y_train": y_train,
+        "y_test": y_test,
+        "feature_names": None,  # Only needed if explainer requires
+    }
+
+
 def compute_fg_matrix(explainer, X: np.ndarray, desc: str) -> np.ndarray:
     fg_vectors: List[np.ndarray] = []
     for i in tqdm(range(X.shape[0]), desc=desc):
@@ -212,15 +247,21 @@ def train_or_load_hybrid(
     return trainer
 
 
-def prepare_artifacts(retrain: bool, embedding_batch_size: int, model_path: str) -> PipelineArtifacts:
-    print("Loading full dataset (balanced sampling disabled)...")
-    loader = IDSDataLoader(balanced_total_samples=None)
-    data = loader.load_and_preprocess()
+def prepare_artifacts(
+    retrain: bool,
+    embedding_batch_size: int,
+    model_path: str,
+    processed_path: str,
+) -> PipelineArtifacts:
+    print(f"Loading processed data from: {processed_path}")
+    data = load_processed_data(processed_path)
 
     X_train = np.asarray(data["X_train"], dtype=np.float32)
     X_test = np.asarray(data["X_test"], dtype=np.float32)
     y_train = np.asarray(data["y_train"], dtype=np.int32)
     y_test = np.asarray(data["y_test"], dtype=np.int32)
+    if data.get("feature_names") is None:
+        data["feature_names"] = [f"feature_{i}" for i in range(X_train.shape[1])]
 
     trainer = train_or_load_hybrid(
         X_train=X_train,
@@ -347,6 +388,7 @@ def run_pipeline(args: argparse.Namespace) -> None:
         retrain=bool(args.retrain),
         embedding_batch_size=int(args.batch_size),
         model_path=args.model_path,
+        processed_path=args.processed_path,
     )
 
     y_train = np.asarray(artifacts.data["y_train"], dtype=np.int32)
@@ -448,6 +490,12 @@ def run_pipeline(args: argparse.Namespace) -> None:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Phase 4 memory retrieval strategy pipeline")
+    parser.add_argument(
+        "--processed_path",
+        type=str,
+        required=True,
+        help="Path to processed .npy files",
+    )
     parser.add_argument("--retrain", action="store_true", help="Retrain model on full dataset")
     parser.add_argument("--compare_all", action="store_true", help="Run all memory strategies")
     parser.add_argument(
