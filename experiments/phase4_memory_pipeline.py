@@ -217,6 +217,20 @@ def build_graph_with_safety(X_train: np.ndarray, y_train: np.ndarray, explainer,
     return graph
 
 
+def resolve_model_path(model_path: str) -> str:
+    """Resolve model target path for both file and directory inputs."""
+    path = os.path.expanduser(model_path)
+    has_file_ext = path.endswith(".keras") or path.endswith(".h5")
+    if has_file_ext:
+        model_dir = os.path.dirname(path)
+        if model_dir:
+            os.makedirs(model_dir, exist_ok=True)
+        return path
+
+    os.makedirs(path, exist_ok=True)
+    return os.path.join(path, "hybrid_latest.keras")
+
+
 def train_or_load_hybrid(
     X_train: np.ndarray,
     y_train: np.ndarray,
@@ -225,14 +239,22 @@ def train_or_load_hybrid(
     retrain: bool,
     model_path: str,
 ) -> IDSModelTrainer:
-    trainer = IDSModelTrainer(model_type="hybrid", model_save_path=model_path)
-    os.makedirs(os.path.dirname(model_path), exist_ok=True)
+    resolved_model_path = resolve_model_path(model_path)
+    trainer = IDSModelTrainer(model_type="hybrid", model_save_path=resolved_model_path)
 
-    if os.path.exists(model_path) and not retrain:
-        print(f"Loading existing model: {model_path}")
-        trainer.model = IDSModelTrainer.load_model(model_path)
+    model_exists = os.path.exists(resolved_model_path)
+    print(f"Model path resolved to: {resolved_model_path}")
+    print(f"Saved model exists: {model_exists}")
+
+    if model_exists and not retrain:
+        print(f"Loading existing model: {resolved_model_path}")
+        trainer.model = IDSModelTrainer.load_model(resolved_model_path)
     else:
         train_batch_size = IDSModelTrainer.recommended_batch_size()
+        if retrain and model_exists:
+            print("Retrain requested: training a fresh model and overwriting saved model.")
+        else:
+            print("Saved model not found: training new model.")
         print(f"Training Hybrid CNN-LSTM on full dataset with batch_size={train_batch_size}")
         trainer.train(
             X_train,
@@ -242,7 +264,7 @@ def train_or_load_hybrid(
             epochs=10,
             batch_size=train_batch_size,
         )
-        trainer.save_model(model_path)
+        trainer.save_model(resolved_model_path)
 
     return trainer
 
