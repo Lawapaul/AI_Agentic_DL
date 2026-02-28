@@ -41,7 +41,7 @@ MODEL_PATH_DEFAULT = "saved_models/phase4_memory/hybrid_latest.keras"
 RESULT_CSV_DEFAULT = "phase4_memory_results.csv"
 GRAPH_THRESHOLD_DEFAULT = 0.7
 RNG_SEED = 42
-MAX_FG_TRAIN_SAMPLES = 10000
+MAX_FG_SAMPLES = 10000
 
 
 @dataclass
@@ -194,15 +194,24 @@ def compute_fg_matrix(explainer, X: np.ndarray, desc: str) -> np.ndarray:
     return np.asarray(fg_vectors, dtype=np.float32)
 
 
-def sample_fg_subset(X_train: np.ndarray, y_train: np.ndarray, train_embeddings: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-    if X_train.shape[0] <= MAX_FG_TRAIN_SAMPLES:
-        print(f"FG subset: using full training set ({X_train.shape[0]} samples)")
-        return X_train, y_train, train_embeddings
+def sample_fg_subset(
+    X: np.ndarray,
+    y: np.ndarray,
+    embeddings: np.ndarray,
+    split_name: str,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    total_samples = int(X.shape[0])
+    subset_size = min(total_samples, MAX_FG_SAMPLES)
 
-    rng = np.random.default_rng(RNG_SEED)
-    idx = rng.choice(X_train.shape[0], MAX_FG_TRAIN_SAMPLES, replace=False)
-    print(f"FG subset: using random {MAX_FG_TRAIN_SAMPLES} / {X_train.shape[0]} training samples")
-    return X_train[idx], y_train[idx], train_embeddings[idx]
+    np.random.seed(42)
+    if total_samples > MAX_FG_SAMPLES:
+        idx = np.random.choice(total_samples, subset_size, replace=False)
+    else:
+        idx = np.arange(total_samples)
+
+    print(f"{split_name} total samples: {total_samples}")
+    print(f"{split_name} FG subset size used: {subset_size}")
+    return X[idx], y[idx], embeddings[idx]
 
 
 def build_graph_with_safety(X_train: np.ndarray, y_train: np.ndarray, explainer, start_threshold: float = GRAPH_THRESHOLD_DEFAULT):
@@ -313,26 +322,32 @@ def prepare_artifacts(
     test_embeddings = trainer.extract_embeddings(X_test, batch_size=embedding_batch_size)
     validate_embeddings(train_embeddings, test_embeddings, y_train, y_test)
 
-    X_train_fg, y_train_fg, train_embeddings_fg = sample_fg_subset(X_train, y_train, train_embeddings)
+    X_train_fg, y_train_fg, train_embeddings_fg = sample_fg_subset(
+        X_train, y_train, train_embeddings, split_name="Train"
+    )
+    X_test_fg, y_test_fg, test_embeddings_fg = sample_fg_subset(
+        X_test, y_test, test_embeddings, split_name="Test"
+    )
 
     print("Generating Feature Gradient vectors...")
     explainer = create_feature_gradient_explainer(trainer.model, data["feature_names"])
     train_fg = compute_fg_matrix(explainer, X_train_fg, "FG train")
-    test_fg = compute_fg_matrix(explainer, X_test, "FG test")
+    test_fg = compute_fg_matrix(explainer, X_test_fg, "FG test")
     validate_fg_vectors(train_fg, test_fg)
 
     print("Building graph correlation...")
     attack_graph = build_graph_with_safety(X_train_fg, y_train_fg, explainer)
 
-    y_pred_test = trainer.predict(X_test, return_probabilities=False).astype(np.int32)
-    if y_pred_test.shape[0] != y_test.shape[0]:
+    y_pred_test = trainer.predict(X_test_fg, return_probabilities=False).astype(np.int32)
+    if y_pred_test.shape[0] != y_test_fg.shape[0]:
         raise ValueError("Prediction count mismatch on test set.")
+    data["y_test_fg"] = y_test_fg
 
     return PipelineArtifacts(
         data=data,
         trainer=trainer,
         train_embeddings=train_embeddings,
-        test_embeddings=test_embeddings,
+        test_embeddings=test_embeddings_fg,
         fg_bank_embeddings=train_embeddings_fg,
         fg_bank_labels=y_train_fg,
         train_fg=train_fg,
@@ -434,7 +449,7 @@ def run_pipeline(args: argparse.Namespace) -> None:
     )
 
     y_train = np.asarray(artifacts.data["y_train"], dtype=np.int32)
-    y_test = np.asarray(artifacts.data["y_test"], dtype=np.int32)
+    y_test = np.asarray(artifacts.data["y_test_fg"], dtype=np.int32)
     memory_bank_size = int(y_train.shape[0])
 
     if memory_bank_size <= 0:
