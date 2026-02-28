@@ -41,6 +41,7 @@ MODEL_PATH_DEFAULT = "saved_models/phase4_memory/hybrid_latest.keras"
 RESULT_CSV_DEFAULT = "phase4_memory_results.csv"
 GRAPH_THRESHOLD_DEFAULT = 0.7
 RNG_SEED = 42
+MAX_FG_TRAIN_SAMPLES = 10000
 
 
 @dataclass
@@ -49,6 +50,8 @@ class PipelineArtifacts:
     trainer: IDSModelTrainer
     train_embeddings: np.ndarray
     test_embeddings: np.ndarray
+    fg_bank_embeddings: np.ndarray
+    fg_bank_labels: np.ndarray
     train_fg: np.ndarray
     test_fg: np.ndarray
     y_pred_test: np.ndarray
@@ -191,6 +194,17 @@ def compute_fg_matrix(explainer, X: np.ndarray, desc: str) -> np.ndarray:
     return np.asarray(fg_vectors, dtype=np.float32)
 
 
+def sample_fg_subset(X_train: np.ndarray, y_train: np.ndarray, train_embeddings: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    if X_train.shape[0] <= MAX_FG_TRAIN_SAMPLES:
+        print(f"FG subset: using full training set ({X_train.shape[0]} samples)")
+        return X_train, y_train, train_embeddings
+
+    rng = np.random.default_rng(RNG_SEED)
+    idx = rng.choice(X_train.shape[0], MAX_FG_TRAIN_SAMPLES, replace=False)
+    print(f"FG subset: using random {MAX_FG_TRAIN_SAMPLES} / {X_train.shape[0]} training samples")
+    return X_train[idx], y_train[idx], train_embeddings[idx]
+
+
 def build_graph_with_safety(X_train: np.ndarray, y_train: np.ndarray, explainer, start_threshold: float = GRAPH_THRESHOLD_DEFAULT):
     thresholds = [start_threshold, 0.6, 0.5, 0.4, 0.3, 0.2]
     class_profiles = build_attack_profiles(
@@ -299,14 +313,16 @@ def prepare_artifacts(
     test_embeddings = trainer.extract_embeddings(X_test, batch_size=embedding_batch_size)
     validate_embeddings(train_embeddings, test_embeddings, y_train, y_test)
 
+    X_train_fg, y_train_fg, train_embeddings_fg = sample_fg_subset(X_train, y_train, train_embeddings)
+
     print("Generating Feature Gradient vectors...")
     explainer = create_feature_gradient_explainer(trainer.model, data["feature_names"])
-    train_fg = compute_fg_matrix(explainer, X_train, "FG train")
+    train_fg = compute_fg_matrix(explainer, X_train_fg, "FG train")
     test_fg = compute_fg_matrix(explainer, X_test, "FG test")
     validate_fg_vectors(train_fg, test_fg)
 
     print("Building graph correlation...")
-    attack_graph = build_graph_with_safety(X_train, y_train, explainer)
+    attack_graph = build_graph_with_safety(X_train_fg, y_train_fg, explainer)
 
     y_pred_test = trainer.predict(X_test, return_probabilities=False).astype(np.int32)
     if y_pred_test.shape[0] != y_test.shape[0]:
@@ -317,6 +333,8 @@ def prepare_artifacts(
         trainer=trainer,
         train_embeddings=train_embeddings,
         test_embeddings=test_embeddings,
+        fg_bank_embeddings=train_embeddings_fg,
+        fg_bank_labels=y_train_fg,
         train_fg=train_fg,
         test_fg=test_fg,
         y_pred_test=y_pred_test,
@@ -339,6 +357,8 @@ def fit_strategy(
     name: str,
     memory: BaseMemoryRetriever,
     train_embeddings: np.ndarray,
+    fg_bank_embeddings: np.ndarray,
+    fg_bank_labels: np.ndarray,
     train_fg: np.ndarray,
     y_train: np.ndarray,
     attack_graph: object,
@@ -350,7 +370,7 @@ def fit_strategy(
         memory.fit(embeddings=train_embeddings, labels=y_train)
         return int(train_embeddings.shape[0])
     if name == "FGKNN":
-        memory.fit(fg_vectors=train_fg, labels=y_train)
+        memory.fit(fg_vectors=train_fg, labels=fg_bank_labels)
         return int(train_fg.shape[0])
     if name == "PrototypeMemory":
         memory.fit(embeddings=train_embeddings, labels=y_train)
@@ -359,8 +379,8 @@ def fit_strategy(
         memory.fit(embeddings=train_embeddings, labels=y_train, attack_graph=attack_graph)
         return int(train_embeddings.shape[0])
     if name == "CombinedMemory":
-        memory.fit(embeddings=train_embeddings, fg_vectors=train_fg, labels=y_train)
-        return int(train_embeddings.shape[0])
+        memory.fit(embeddings=fg_bank_embeddings, fg_vectors=train_fg, labels=fg_bank_labels)
+        return int(train_fg.shape[0])
     raise ValueError(f"Unknown memory strategy: {name}")
 
 
@@ -446,6 +466,8 @@ def run_pipeline(args: argparse.Namespace) -> None:
             name=name,
             memory=memory,
             train_embeddings=artifacts.train_embeddings,
+            fg_bank_embeddings=artifacts.fg_bank_embeddings,
+            fg_bank_labels=artifacts.fg_bank_labels,
             train_fg=artifacts.train_fg,
             y_train=y_train,
             attack_graph=artifacts.attack_graph,
