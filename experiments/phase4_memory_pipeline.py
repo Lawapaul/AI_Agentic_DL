@@ -301,38 +301,81 @@ def prepare_artifacts(
     print(f"Loading processed data from: {processed_path}")
     data = load_processed_data(processed_path)
 
-    X_train = np.asarray(data["X_train"], dtype=np.float32)
-    X_test = np.asarray(data["X_test"], dtype=np.float32)
-    y_train = np.asarray(data["y_train"], dtype=np.int32)
-    y_test = np.asarray(data["y_test"], dtype=np.int32)
+    X_train_full = np.asarray(data["X_train"], dtype=np.float32)
+    X_test_full = np.asarray(data["X_test"], dtype=np.float32)
+    y_train_full = np.asarray(data["y_train"], dtype=np.int32).reshape(-1)
+    y_test_full = np.asarray(data["y_test"], dtype=np.int32).reshape(-1)
     if data.get("feature_names") is None:
-        data["feature_names"] = [f"feature_{i}" for i in range(X_train.shape[1])]
+        data["feature_names"] = [f"feature_{i}" for i in range(X_train_full.shape[1])]
 
     trainer = train_or_load_hybrid(
-        X_train=X_train,
-        y_train=y_train,
-        X_test=X_test,
-        y_test=y_test,
+        X_train=X_train_full,
+        y_train=y_train_full,
+        X_test=X_test_full,
+        y_test=y_test_full,
         retrain=retrain,
         model_path=model_path,
     )
 
-    print("Extracting embeddings (penultimate layer)...")
-    train_embeddings = trainer.extract_embeddings(X_train, batch_size=embedding_batch_size)
-    test_embeddings = trainer.extract_embeddings(X_test, batch_size=embedding_batch_size)
-    validate_embeddings(train_embeddings, test_embeddings, y_train, y_test)
+    rng = np.random.default_rng(RNG_SEED)
+    train_total = int(X_train_full.shape[0])
+    test_total = int(X_test_full.shape[0])
+    train_subset_size = min(train_total, MAX_FG_SAMPLES)
+    test_subset_size = min(test_total, MAX_FG_SAMPLES)
 
-    X_train_fg, y_train_fg, train_embeddings_fg = sample_fg_subset(
-        X_train, y_train, train_embeddings, split_name="Train"
-    )
-    X_test_fg, y_test_fg, test_embeddings_fg = sample_fg_subset(
-        X_test, y_test, test_embeddings, split_name="Test"
-    )
+    if train_total > MAX_FG_SAMPLES:
+        train_idx = rng.choice(train_total, size=train_subset_size, replace=False)
+    else:
+        train_idx = np.arange(train_total)
 
-    print("Generating Feature Gradient vectors...")
+    if test_total > MAX_FG_SAMPLES:
+        test_idx = rng.choice(test_total, size=test_subset_size, replace=False)
+    else:
+        test_idx = np.arange(test_total)
+
+    X_train_fg = X_train_full[train_idx]
+    y_train_fg = y_train_full[train_idx]
+    X_test_fg = X_test_full[test_idx]
+    y_test_fg = y_test_full[test_idx]
+
+    print(f"Train total samples: {train_total}")
+    print(f"Train FG subset size used: {train_subset_size}")
+    print(f"Test total samples: {test_total}")
+    print(f"Test FG subset size used: {test_subset_size}")
+
+    print("Extracting embeddings (subset only, penultimate layer)...")
+    train_embeddings = trainer.extract_embeddings(X_train_fg, batch_size=embedding_batch_size)
+    test_embeddings = trainer.extract_embeddings(X_test_fg, batch_size=embedding_batch_size)
+    validate_embeddings(train_embeddings, test_embeddings, y_train_fg, y_test_fg)
+
+    resolved_model_path = resolve_model_path(model_path)
+    fg_cache_dir = os.path.dirname(resolved_model_path) or "."
+    train_fg_path = os.path.join(fg_cache_dir, "train_fg.npy")
+    test_fg_path = os.path.join(fg_cache_dir, "test_fg.npy")
+
     explainer = create_feature_gradient_explainer(trainer.model, data["feature_names"])
-    train_fg = compute_fg_matrix(explainer, X_train_fg, "FG train")
-    test_fg = compute_fg_matrix(explainer, X_test_fg, "FG test")
+    use_cached_fg = os.path.exists(train_fg_path) and os.path.exists(test_fg_path)
+
+    if use_cached_fg:
+        print("Loading cached FG vectors...")
+        train_fg = np.load(train_fg_path).astype(np.float32, copy=False)
+        test_fg = np.load(test_fg_path).astype(np.float32, copy=False)
+
+        expected_train = X_train_fg.shape[0]
+        expected_test = X_test_fg.shape[0]
+        if train_fg.shape[0] != expected_train or test_fg.shape[0] != expected_test:
+            print("Cached FG shape mismatch. Computing FG vectors...")
+            train_fg = compute_fg_matrix(explainer, X_train_fg, "FG train")
+            test_fg = compute_fg_matrix(explainer, X_test_fg, "FG test")
+            np.save(train_fg_path, train_fg)
+            np.save(test_fg_path, test_fg)
+    else:
+        print("Computing FG vectors...")
+        train_fg = compute_fg_matrix(explainer, X_train_fg, "FG train")
+        test_fg = compute_fg_matrix(explainer, X_test_fg, "FG test")
+        np.save(train_fg_path, train_fg)
+        np.save(test_fg_path, test_fg)
+
     validate_fg_vectors(train_fg, test_fg)
 
     print("Building graph correlation...")
@@ -340,15 +383,21 @@ def prepare_artifacts(
 
     y_pred_test = trainer.predict(X_test_fg, return_probabilities=False).astype(np.int32)
     if y_pred_test.shape[0] != y_test_fg.shape[0]:
-        raise ValueError("Prediction count mismatch on test set.")
+        raise ValueError("Prediction count mismatch on FG test subset.")
+
+    # Downstream evaluation and memory banks should reflect subset data.
+    data["X_train"] = X_train_fg
+    data["X_test"] = X_test_fg
+    data["y_train"] = y_train_fg
+    data["y_test"] = y_test_fg
     data["y_test_fg"] = y_test_fg
 
     return PipelineArtifacts(
         data=data,
         trainer=trainer,
         train_embeddings=train_embeddings,
-        test_embeddings=test_embeddings_fg,
-        fg_bank_embeddings=train_embeddings_fg,
+        test_embeddings=test_embeddings,
+        fg_bank_embeddings=train_embeddings,
         fg_bank_labels=y_train_fg,
         train_fg=train_fg,
         test_fg=test_fg,
