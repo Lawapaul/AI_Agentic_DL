@@ -14,8 +14,8 @@ def build_model(input_shape, num_classes):
     x = layers.BatchNormalization()(x)
     x = layers.MaxPooling1D(2)(x)
 
-    # LSTM Block
-    x = layers.LSTM(128)(x)
+    # LSTM Block (explicit embedding exposure for Phase 4 memory retrieval)
+    x = layers.LSTM(128, name="embedding_layer")(x)
 
 
     x = layers.Dropout(0.3)(x)
@@ -31,3 +31,17 @@ def build_model(input_shape, num_classes):
     )
 
     return model
+
+
+def extract_embedding(model, X, batch_size=256):
+    """
+    Extract embeddings from the named embedding layer.
+    Kept lightweight for Colab and Phase 4 experiments.
+    """
+    if len(X.shape) == 2:
+        X = X.reshape(X.shape[0], X.shape[1], 1)
+    embedding_model = models.Model(
+        inputs=model.input,
+        outputs=model.get_layer("embedding_layer").output,
+    )
+    return embedding_model.predict(X, batch_size=batch_size, verbose=0)

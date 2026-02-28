@@ -31,8 +31,20 @@ class IDSModelTrainer:
         self.model = None
         self.model_save_path = model_save_path
         self.history = None
+        self.embedding_model = None
 
         os.makedirs(os.path.dirname(model_save_path), exist_ok=True)
+
+    @staticmethod
+    def detect_device():
+        """Return active training device type for Colab-friendly logging."""
+        gpus = tf.config.list_physical_devices("GPU")
+        return "GPU" if gpus else "CPU"
+
+    @staticmethod
+    def recommended_batch_size():
+        """Choose a conservative default batch size based on hardware."""
+        return 256 if tf.config.list_physical_devices("GPU") else 128
 
     # =====================================================
     # TRAIN
@@ -146,6 +158,41 @@ class IDSModelTrainer:
             return predictions
         else:
             return np.argmax(predictions, axis=1)
+
+    # =====================================================
+    # EMBEDDINGS (PENULTIMATE LAYER)
+    # =====================================================
+
+    def get_embedding_model(self):
+        """
+        Build a model that outputs penultimate activations.
+        This is used by Phase 4 memory retrieval and does not alter prediction.
+        """
+        if self.model is None:
+            raise RuntimeError("Model is not initialized.")
+        if self.embedding_model is None:
+            # Prefer explicit embedding layer when available (Phase 4 contract).
+            try:
+                embedding_output = self.model.get_layer("embedding_layer").output
+            except ValueError:
+                if len(self.model.layers) < 2:
+                    raise ValueError("Model must have at least two layers for penultimate embeddings.")
+                embedding_output = self.model.layers[-2].output
+
+            self.embedding_model = keras.Model(
+                inputs=self.model.input,
+                outputs=embedding_output,
+                name=f"{self.model.name}_embedding_model",
+            )
+        return self.embedding_model
+
+    def extract_embeddings(self, X, batch_size=256):
+        """Extract penultimate-layer embeddings for samples X."""
+        if len(X.shape) == 2:
+            X = X.reshape(X.shape[0], X.shape[1], 1)
+        emb_model = self.get_embedding_model()
+        embeddings = emb_model.predict(X, batch_size=batch_size, verbose=0)
+        return np.asarray(embeddings, dtype=np.float32)
 
     # =====================================================
     # DETAILED REPORT

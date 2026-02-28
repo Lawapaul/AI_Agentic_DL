@@ -119,6 +119,27 @@ python pipeline.py --samples 5 --retrain
 python pipeline.py --samples 5 --no-ollama
 ```
 
+### Phase 4 Memory Retrieval (Colab-ready)
+
+```python
+import tensorflow as tf
+from pipeline import IDSPipeline
+
+print("GPU available:", bool(tf.config.list_physical_devices("GPU")))
+
+pipeline = IDSPipeline(
+    model_type="hybrid",
+    use_llm=False,
+    memory_strategy="graph_aware",  # embedding_knn | fg_knn | prototype | graph_aware
+    memory_top_k=5,
+    use_memory=True,
+)
+
+# Uses full dataset (balanced sampling disabled by default in loader)
+results = pipeline.run_pipeline(num_samples=10, force_retrain=True)
+results[0]["memory_context"]
+```
+
 ## 📁 Project Structure
 
 ```
@@ -133,11 +154,20 @@ ids-explainable-agent/
 │   └── risk_scorer.py         # Risk scoring
 ├── graph_correlation/
 │   └── graph_correlation.py   # Phase 3 attack correlation graph
+├── memory/
+│   ├── base_memory.py         # Abstract memory interface
+│   ├── knn_embedding_memory.py  # Embedding-space KNN retrieval
+│   ├── knn_fg_memory.py       # FG-space KNN retrieval
+│   ├── graph_aware_memory.py  # Graph-constrained retrieval
+│   ├── prototype_memory.py    # Class-centroid memory baseline
+│   └── memory_evaluator.py    # Retrieval metrics + stability
 ├── llm/
 │   └── huggingface_client.py  # HuggingFace LLM client
 ├── agent/
 │   └── decision_agent.py      # Automated decision making
 ├── pipeline.py                # Main pipeline orchestrator
+├── experiments/
+│   └── memory_comparison.py   # Phase 4 strategy comparison
 ├── requirements.txt           # Python dependencies
 └── IDS_Colab_HuggingFace.ipynb  # Google Colab notebook
 ```
