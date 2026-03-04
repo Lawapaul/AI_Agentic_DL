@@ -67,6 +67,15 @@ def load_processed_dataset(processed_path: str) -> Dict[str, np.ndarray]:
     }
 
 
+def _subsample(X: np.ndarray, y: np.ndarray, max_samples: int, seed: int) -> Tuple[np.ndarray, np.ndarray]:
+    """Deterministically subsample arrays when max_samples is set."""
+    if max_samples <= 0 or X.shape[0] <= max_samples:
+        return X, y
+    rng = np.random.default_rng(seed)
+    idx = rng.choice(X.shape[0], size=max_samples, replace=False)
+    return X[idx], y[idx]
+
+
 def simulate_pipeline_signals(X: np.ndarray, y: np.ndarray, seed: int = RNG_SEED) -> np.ndarray:
     """Create deterministic proxy signals [C, M, G, F] in [0, 1]."""
     rng = np.random.default_rng(seed)
@@ -129,10 +138,16 @@ def evaluate_method(name: str, fusion, X_test: np.ndarray, y_true: np.ndarray) -
     }
 
 
-def run_experiment(processed_path: str, output_dir: str) -> Tuple[pd.DataFrame, str]:
+def run_experiment(processed_path: str, output_dir: str, max_samples: int = 0) -> Tuple[pd.DataFrame, str]:
     np.random.seed(RNG_SEED)
 
     data = load_processed_dataset(processed_path)
+    if max_samples > 0:
+        data["X_train"], data["y_train"] = _subsample(data["X_train"], data["y_train"], max_samples, RNG_SEED)
+        # Keep test size smaller for faster evaluation while still representative.
+        test_cap = max(2000, min(max_samples // 2, data["X_test"].shape[0]))
+        data["X_test"], data["y_test"] = _subsample(data["X_test"], data["y_test"], test_cap, RNG_SEED + 1)
+
     X_train_signals = simulate_pipeline_signals(data["X_train"], data["y_train"], seed=RNG_SEED)
     X_test_signals = simulate_pipeline_signals(data["X_test"], data["y_test"], seed=RNG_SEED + 10)
 
@@ -179,9 +194,9 @@ def run_experiment(processed_path: str, output_dir: str) -> Tuple[pd.DataFrame, 
     return results, fig_path
 
 
-def evaluate(processed_path: str, output_dir: str) -> pd.DataFrame:
+def evaluate(processed_path: str, output_dir: str, max_samples: int = 0) -> pd.DataFrame:
     """Notebook-friendly wrapper that returns only the comparison table."""
-    results, _ = run_experiment(processed_path, output_dir)
+    results, _ = run_experiment(processed_path, output_dir, max_samples=max_samples)
     return results
 
 
@@ -189,9 +204,10 @@ def main():
     parser = argparse.ArgumentParser(description="Adaptive Risk Fusion experiment runner")
     parser.add_argument("--processed_path", type=str, default=DEFAULT_PROCESSED_PATH)
     parser.add_argument("--output_dir", type=str, default="experiments/results")
+    parser.add_argument("--max_samples", type=int, default=0, help="Optional train subsample size for faster runs.")
     args = parser.parse_args()
 
-    results, fig_path = run_experiment(args.processed_path, args.output_dir)
+    results, fig_path = run_experiment(args.processed_path, args.output_dir, max_samples=args.max_samples)
 
     print("\nMethod Comparison")
     print(results.to_string(index=False, float_format=lambda v: f"{v:.4f}"))
