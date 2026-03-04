@@ -194,8 +194,12 @@ def run_experiment(processed_path: str, output_dir: str, max_samples: int = 0) -
     return results, fig_path
 
 
-def evaluate(processed_path: str, output_dir: str, max_samples: int = 0) -> pd.DataFrame:
-    """Notebook-friendly wrapper that returns only the comparison table."""
+def evaluate(processed_path: str, output_dir: str, max_samples: int = 20000) -> pd.DataFrame:
+    """Notebook-friendly wrapper that returns only the comparison table.
+
+    Uses a fast default subsample to avoid very long Colab runs when callers
+    do not explicitly pass max_samples.
+    """
     results, _ = run_experiment(processed_path, output_dir, max_samples=max_samples)
     return results
 
