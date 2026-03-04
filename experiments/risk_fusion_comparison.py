@@ -179,6 +179,12 @@ def run_experiment(processed_path: str, output_dir: str) -> Tuple[pd.DataFrame, 
     return results, fig_path
 
 
+def evaluate(processed_path: str, output_dir: str) -> pd.DataFrame:
+    """Notebook-friendly wrapper that returns only the comparison table."""
+    results, _ = run_experiment(processed_path, output_dir)
+    return results
+
+
 def main():
     parser = argparse.ArgumentParser(description="Adaptive Risk Fusion experiment runner")
     parser.add_argument("--processed_path", type=str, default=DEFAULT_PROCESSED_PATH)
