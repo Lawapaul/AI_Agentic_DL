@@ -8,8 +8,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
 
-import pandas as pd
-
 from feedback_store.feedback_db import insert_feedback
 
 
@@ -68,11 +66,16 @@ def log_feedback(
         handle.write(json.dumps({"id": record_id, **record}) + "\n")
 
     parquet_path = results_path / "feedback_log.parquet"
-    frame = pd.DataFrame([{"id": record_id, **record}])
-    if parquet_path.exists():
-        existing = pd.read_parquet(parquet_path)
-        frame = pd.concat([existing, frame], ignore_index=True)
-    frame.to_parquet(parquet_path, index=False)
+    try:
+        import pandas as pd
+
+        frame = pd.DataFrame([{"id": record_id, **record}])
+        if parquet_path.exists():
+            existing = pd.read_parquet(parquet_path)
+            frame = pd.concat([existing, frame], ignore_index=True)
+        frame.to_parquet(parquet_path, index=False)
+    except Exception as exc:  # pragma: no cover - optional parquet path
+        LOGGER.warning("Skipping parquet feedback export: %s", exc)
 
     LOGGER.info("Logged feedback for event %s with reward %.3f", record["event_id"], record["reward"])
     return {"id": record_id, **record}
