@@ -29,7 +29,7 @@ from graph_correlation import (
     validate_attack_graph,
 )
 from explainability.risk_scorer import create_risk_scorer
-from llm.huggingface_client import create_huggingface_explainer
+from llm_reasoning import LLMPipeline
 from agent.decision_agent import create_decision_agent
 from memory import MemoryEvaluator
 from memory.base_memory import BaseMemoryRetriever
@@ -93,7 +93,7 @@ class IDSPipeline:
         model_type: str = "hybrid",
         model_path: str = "saved_models/ids_model.keras",
         use_llm: bool = True,
-        llm_model: str = "google/flan-t5-base",
+        llm_model: str = "google/flan-t5-small",
     ):
         self.model_type = model_type
         self.model_path = model_path
@@ -221,7 +221,7 @@ class IDSPipeline:
 
         if self.use_llm:
             try:
-                self.llm_explainer = create_huggingface_explainer(model_name=self.llm_model, temperature=0.3)
+                self.llm_explainer = LLMPipeline(model_name=self.llm_model, max_length=200)
                 print(f"\n✓ LLM initialized: {self.llm_model}")
             except Exception as e:
                 print(f"Could not initialize LLM: {e}")
@@ -413,13 +413,14 @@ class IDSPipeline:
 
         llm_explanation = None
         if self.use_llm and self.llm_explainer:
-            llm_explanation = self.llm_explainer.explain_prediction(
-                attack_type,
-                confidence,
-                risk_result["risk_score"],
-                risk_result["severity_category"],
-                fg_explanation["top_features"],
-            )
+            prompt, output = self.llm_explainer.run(X_sample[0], attack_type, confidence)
+            llm_explanation = {
+                "prompt": prompt,
+                "raw_explanation": output,
+                "attack_type": attack_type,
+                "confidence": confidence,
+                "risk_assessment": f'{risk_result["severity_category"]} risk - {attack_type}',
+            }
 
         decision = self.decision_agent.decide_action(
             attack_type,
@@ -438,6 +439,7 @@ class IDSPipeline:
             "risk_score": risk_result["risk_score"],
             "severity": risk_result["severity_category"],
             "agent_decision": decision["action"],
+            "llm_explanation": llm_explanation,
         }
 
     # =====================================================
