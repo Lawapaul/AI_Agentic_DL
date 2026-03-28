@@ -1,12 +1,18 @@
-"""LLM-backed decision planner with learned in-context examples."""
+"""LLM-backed decision planner."""
 
 from __future__ import annotations
-
-from transformers import pipeline
 
 
 class LLMPlanner:
     def __init__(self, model: str = "google/flan-t5-small"):
+        try:
+            from transformers import pipeline
+        except Exception as exc:  # pragma: no cover
+            raise RuntimeError(
+                "LLMPlanner could not import transformers. Reinstall compatible Colab "
+                "dependencies and restart the runtime before using LLMPlanner."
+            ) from exc
+
         self.generator = pipeline("text2text-generation", model=model)
         self.examples = []
 
@@ -26,22 +32,25 @@ class LLMPlanner:
         return self
 
     def decide(self, attack, confidence, severity):
-        example_block = ""
-        if self.examples:
-            lines = []
-            for item in self.examples:
-                lines.append(
-                    f"Attack: {item['attack']}\nConfidence: {item['confidence']:.2f}\nSeverity: {item['severity']}\nBest Action: {item['action']}"
-                )
-            example_block = "Examples:\n" + "\n\n".join(lines) + "\n\n"
+        if attack == "Normal Traffic":
+            return "No Action"
 
         prompt = f"""
-{example_block}Attack: {attack}
+You are a cybersecurity system.
+
+STRICT RULE:
+If attack is "Normal Traffic" -> output ONLY "No Action"
+
+Input:
+Attack: {attack}
 Confidence: {confidence:.2f}
 Severity: {severity}
 
-Choose the best action from: Block, Monitor, Alert, No Action, Log Only, Alert + Monitor.
-Output only the action phrase.
+Choose ONE action:
+No Action / Monitor / Alert / Block
+
+Output ONLY one word.
 """.strip()
-        result = self.generator(prompt, max_length=24)
+
+        result = self.generator(prompt, do_sample=False, max_length=20)
         return result[0]["generated_text"].strip()
