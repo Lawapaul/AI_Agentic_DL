@@ -7,9 +7,9 @@ from llm_reasoning.reasoning_generator import ReasoningGenerator
 class LLMPipeline:
     """Generate prompts and model reasoning for one IDS sample."""
 
-    def __init__(self):
+    def __init__(self, model: str = "google/flan-t5-small"):
         self.engine = LLMReasoningEngine()
-        self.generator = ReasoningGenerator()
+        self.generator = ReasoningGenerator(model=model)
 
     def run(self, features, prediction, confidence: float):
         prompt = self.engine.generate_prompt(features, prediction, confidence)
