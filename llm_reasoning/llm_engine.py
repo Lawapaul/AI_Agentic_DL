@@ -1,31 +1,30 @@
 """Prompt construction for lightweight LLM-based IDS reasoning."""
 
-from __future__ import annotations
-
-from typing import Iterable
-
 
 class LLMReasoningEngine:
-    """Build concise prompts from model outputs and feature vectors."""
+    """Build a structured prompt from model outputs and feature vectors."""
 
-    def __init__(self, feature_count: int = 10):
-        self.feature_count = feature_count
+    def generate_prompt(self, features, prediction, confidence):
+        return f"""
+You are an expert cybersecurity analyst.
 
-    def generate_prompt(self, features: Iterable[float], prediction, confidence: float) -> str:
-        feature_list = list(features)
-        prompt = f"""
-You are a cybersecurity expert analyzing network traffic.
+Input:
+- Predicted Class: {prediction}
+- Confidence: {confidence:.2f}
+- Feature Sample: {list(features[:10])}
 
-Feature Summary (first {self.feature_count} values): {feature_list[: self.feature_count]}
-Predicted Class: {prediction}
-Confidence Score: {confidence:.2f}
+Tasks:
+1. Identify attack type
+2. Explain reasoning using features
+3. Evaluate confidence
+4. Assign severity
+5. Suggest action
 
-Based on this, answer clearly:
-1. What type of attack is this?
-2. Why does this pattern indicate that attack?
-3. What is the severity (Low/Medium/High)?
-4. What action should be taken?
+Output format:
 
-Provide a concise explanation with short labeled sections.
-"""
-        return prompt.strip()
+Attack:
+Reason:
+Confidence Analysis:
+Severity:
+Action:
+""".strip()
