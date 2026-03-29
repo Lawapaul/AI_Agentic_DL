@@ -5,6 +5,7 @@ from memory.knn_embedding_memory import EmbeddingKNNMemory
 from memory.knn_fg_memory import FeatureGradientKNNMemory
 from memory.graph_aware_memory import GraphAwareMemory
 from memory.prototype_memory import PrototypeMemory
+from memory.runtime_memory import RuntimeMemoryRetriever
 from memory.memory_evaluator import MemoryEvaluator
 
 __all__ = [
@@ -14,5 +15,6 @@ __all__ = [
     "FeatureGradientKNNMemory",
     "GraphAwareMemory",
     "PrototypeMemory",
+    "RuntimeMemoryRetriever",
     "MemoryEvaluator",
 ]

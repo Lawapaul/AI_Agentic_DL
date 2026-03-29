@@ -13,7 +13,12 @@ class LLMPlanner:
                 "dependencies and restart the runtime before using LLMPlanner."
             ) from exc
 
-        self.generator = pipeline("text2text-generation", model=model)
+        self.task = "text2text-generation"
+        try:
+            self.generator = pipeline("text2text-generation", model=model)
+        except Exception:
+            self.task = "text-generation"
+            self.generator = pipeline("text-generation", model="distilgpt2")
         self.examples = []
 
     def fit(self, attacks, confidences, severities, targets, max_examples: int = 4):
@@ -52,5 +57,18 @@ No Action / Monitor / Alert / Block
 Output ONLY one word.
 """.strip()
 
-        result = self.generator(prompt, do_sample=False, max_length=20)
-        return result[0]["generated_text"].strip()
+        if self.task == "text2text-generation":
+            result = self.generator(prompt, do_sample=False, max_new_tokens=10)
+            return result[0]["generated_text"].strip()
+
+        result = self.generator(
+            f"{prompt}\nAction:",
+            do_sample=False,
+            max_new_tokens=6,
+            pad_token_id=self.generator.tokenizer.eos_token_id,
+        )
+        generated = result[0]["generated_text"].split("Action:", 1)[-1].strip()
+        action = generated.split()[0] if generated else "Monitor"
+        if action not in {"No", "Monitor", "Alert", "Block"}:
+            return "Monitor"
+        return "No Action" if action == "No" else action

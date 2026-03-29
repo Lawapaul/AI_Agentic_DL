@@ -44,11 +44,18 @@ class BaseMemoryRetriever(ABC):
             key = str(int(lab))
             class_distribution[key] = class_distribution.get(key, 0) + 1
 
+        avg_similarity = float(np.mean(sims)) if sims.size > 0 else 0.0
+        top_similarity = float(np.max(sims)) if sims.size > 0 else 0.0
+
         return {
             "top_k_labels": labels.tolist(),
             "similarity_scores": [float(x) for x in sims.tolist()],
             "class_distribution": class_distribution,
-            "avg_similarity": float(np.mean(sims)) if sims.size > 0 else 0.0,
+            "avg_similarity": avg_similarity,
+            # Aliases used by integration/demo code.
+            "labels": labels.tolist(),
+            "similarities": [float(x) for x in sims.tolist()],
+            "top_similarity": top_similarity,
         }
 
     @abstractmethod

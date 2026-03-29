@@ -26,9 +26,11 @@ from explainability.feature_gradient_explainer import create_feature_gradient_ex
 from feedback_store.feedback_db import fetch_feedback, init_db
 from feedback_store.feedback_logger import compute_reward, log_feedback
 from graph_correlation import build_attack_graph, build_attack_profiles, get_top_correlated_classes
+from graph_correlation import fallback_correlate_with_history
 from human_review.review_logic import simulate_human_review, trigger_human_review
 from human_review.schemas import ReviewRequest
 from llm_reasoning import LLMPipeline
+from memory import RuntimeMemoryRetriever
 from models.trainer import IDSModelTrainer
 from retraining import RLTrainer, SupervisedDecisionTrainer, load_feedback_dataset
 from risk_fusion.logistic_regression_fusion import RiskFusion
@@ -69,30 +71,11 @@ def _safe_call(step: str, fn, *args, default=None, **kwargs):
 
 
 def _init_optional_llm(component_name: str, factory, *args, **kwargs):
-    if not _supports_text2text_generation():
-        LOGGER.warning("%s skipped because this transformers build does not support text2text-generation.", component_name)
-        return None
     try:
         return factory(*args, **kwargs)
     except Exception as exc:  # pragma: no cover - depends on transformers runtime
-        message = str(exc)
-        if "Unknown task text2text-generation" in message:
-            LOGGER.warning("%s skipped because this transformers build does not support text2text-generation.", component_name)
-            return None
         LOGGER.exception("%s failed: %s", component_name, exc)
         return None
-
-
-def _supports_text2text_generation() -> bool:
-    try:
-        from transformers.pipelines import PIPELINE_REGISTRY
-    except Exception:  # pragma: no cover
-        return False
-    try:
-        supported_tasks = PIPELINE_REGISTRY.get_supported_tasks()
-    except Exception:  # pragma: no cover
-        return False
-    return "text2text-generation" in supported_tasks
 
 
 def _available_ram_gb() -> float:
@@ -287,8 +270,24 @@ def _run_lime_for_indices(
 def _graph_window_summary(
     graph,
     predicted_class: int,
+    sample_features: np.ndarray,
+    history_features: np.ndarray,
+    ensure_neighbor: bool = False,
 ) -> dict[str, Any]:
     neighbors = get_top_correlated_classes(graph, int(predicted_class), top_k=3)
+    if not neighbors:
+        history_neighbors = fallback_correlate_with_history(
+            current_features=sample_features,
+            history_features=history_features,
+            top_k=3,
+            threshold=0.7,
+            ensure_one=ensure_neighbor,
+        )
+        neighbors = [(idx, weight) for idx, weight in history_neighbors]
+        return {
+            "top_neighbors": [{"sample_id": f"sample_{int(idx)}", "weight": float(weight)} for idx, weight in neighbors],
+            "max_weight": float(neighbors[0][1]) if neighbors else 0.0,
+        }
     return {
         "top_neighbors": [{"class_id": int(cls), "weight": float(weight)} for cls, weight in neighbors],
         "max_weight": float(neighbors[0][1]) if neighbors else 0.0,
@@ -301,6 +300,7 @@ def _build_graph_summaries(
     explainer,
     window_size: int = 64,
     threshold: float = 0.7,
+    ensure_neighbor: bool = False,
 ) -> dict[int, dict[str, Any]]:
     outputs: dict[int, dict[str, Any]] = {}
     samples_3d = _ensure_3d(samples_2d)
@@ -316,7 +316,16 @@ def _build_graph_summaries(
         graph = build_attack_graph(profiles, threshold=threshold)
 
         for offset, predicted_class in enumerate(window_y.tolist()):
-            outputs[start + offset] = _graph_window_summary(graph, int(predicted_class))
+            current_idx = start + offset
+            history_start = max(0, current_idx - 5)
+            history_features = samples_2d[history_start:current_idx]
+            outputs[current_idx] = _graph_window_summary(
+                graph,
+                int(predicted_class),
+                samples_2d[current_idx],
+                history_features,
+                ensure_neighbor=ensure_neighbor,
+            )
 
     return outputs
 
@@ -624,9 +633,18 @@ def _core_pipeline(processed_path: str, model_path: str, sample_override: int | 
         ) or {}
 
     filtered_fg = _safe_call("feature_gradient.filtered", _compute_fg_vectors, fg_explainer, filtered_x, default=np.empty((0, x_train.shape[1]), dtype=np.float32))
-    graph_results = _safe_call("graph.build", _build_graph_summaries, filtered_x, filtered_predictions, fg_explainer, default={}) or {}
+    graph_results = _safe_call(
+        "graph.build",
+        _build_graph_summaries,
+        filtered_x,
+        filtered_predictions,
+        fg_explainer,
+        ensure_neighbor=demo_mode,
+        default={},
+    ) or {}
 
     memory_results: dict[int, dict[str, Any]] = {}
+    runtime_memory = RuntimeMemoryRetriever(top_k=1, min_similarity=0.5)
     bank_size = min(len(x_train), 1024 if not demo_mode else 256)
     if CombinedMemory is not None and bank_size > 0 and len(filtered_x) > 0:
         train_embeddings = _safe_call("memory.train_embeddings", _batched_embeddings, trainer, x_train[:bank_size], runtime["batch_size"], default=None)
@@ -655,7 +673,7 @@ def _core_pipeline(processed_path: str, model_path: str, sample_override: int | 
                     memory_results[offset] = {
                         "labels": [int(value) for value in context.get("labels", [])] if context else [],
                         "similarities": [float(value) for value in context.get("similarities", [])] if context else [],
-                        "top_similarity": float(max(context.get("similarities", [0.0])) if context else 0.0),
+                        "top_similarity": float(context.get("top_similarity", 0.0)) if context else 0.0,
                     }
 
     fg_strength = _fg_strengths(filtered_fg)
@@ -669,6 +687,16 @@ def _core_pipeline(processed_path: str, model_path: str, sample_override: int | 
     for offset, source_idx in enumerate(high_risk_indices.tolist()):
         sample_graph = graph_results.get(offset, {"top_neighbors": [], "max_weight": 0.0})
         sample_memory = memory_results.get(offset, {"labels": [], "similarities": [], "top_similarity": 0.0})
+        if not sample_memory.get("labels"):
+            runtime_context = runtime_memory.retrieve(
+                query_embedding=filtered_x[offset],
+                predicted_class=int(filtered_predictions[offset]),
+            )
+            sample_memory = {
+                "labels": [int(value) for value in runtime_context.get("labels", [])],
+                "similarities": [float(value) for value in runtime_context.get("similarities", [])],
+                "top_similarity": float(runtime_context.get("top_similarity", 0.0)),
+            }
         sample_fg_strength = float(fg_strength[offset]) if len(fg_strength) > offset else 0.0
         fusion_output = _safe_call(
             "risk_fusion.compute",
@@ -727,6 +755,7 @@ def _core_pipeline(processed_path: str, model_path: str, sample_override: int | 
                 "planner_target": target_meta,
             }
         )
+        runtime_memory.add(filtered_x[offset], int(filtered_predictions[offset]))
 
     planner_comparison = _compare_decision_planners(planner_samples) if planner_samples else {"best_planner": None, "metrics": {}}
     best_planner_name = planner_comparison.get("best_planner")
