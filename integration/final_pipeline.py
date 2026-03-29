@@ -69,6 +69,9 @@ def _safe_call(step: str, fn, *args, default=None, **kwargs):
 
 
 def _init_optional_llm(component_name: str, factory, *args, **kwargs):
+    if not _supports_text2text_generation():
+        LOGGER.warning("%s skipped because this transformers build does not support text2text-generation.", component_name)
+        return None
     try:
         return factory(*args, **kwargs)
     except Exception as exc:  # pragma: no cover - depends on transformers runtime
@@ -78,6 +81,18 @@ def _init_optional_llm(component_name: str, factory, *args, **kwargs):
             return None
         LOGGER.exception("%s failed: %s", component_name, exc)
         return None
+
+
+def _supports_text2text_generation() -> bool:
+    try:
+        from transformers.pipelines import PIPELINE_REGISTRY
+    except Exception:  # pragma: no cover
+        return False
+    try:
+        supported_tasks = PIPELINE_REGISTRY.get_supported_tasks()
+    except Exception:  # pragma: no cover
+        return False
+    return "text2text-generation" in supported_tasks
 
 
 def _available_ram_gb() -> float:
