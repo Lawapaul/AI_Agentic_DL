@@ -68,6 +68,18 @@ def _safe_call(step: str, fn, *args, default=None, **kwargs):
         return default
 
 
+def _init_optional_llm(component_name: str, factory, *args, **kwargs):
+    try:
+        return factory(*args, **kwargs)
+    except Exception as exc:  # pragma: no cover - depends on transformers runtime
+        message = str(exc)
+        if "Unknown task text2text-generation" in message:
+            LOGGER.warning("%s skipped because this transformers build does not support text2text-generation.", component_name)
+            return None
+        LOGGER.exception("%s failed: %s", component_name, exc)
+        return None
+
+
 def _available_ram_gb() -> float:
     if os.path.exists("/proc/meminfo"):
         with open("/proc/meminfo", "r", encoding="utf-8") as handle:
@@ -361,7 +373,7 @@ def _compare_decision_planners(samples: list[dict[str, Any]]) -> dict[str, Any]:
         "policy": PolicyBasedPlanner(),
     }
 
-    llm_planner = _safe_call("decision_planner.llm.init", LLMPlanner, default=None)
+    llm_planner = _init_optional_llm("decision_planner.llm.init", LLMPlanner)
     if llm_planner is not None:
         planners["llm"] = llm_planner
 
@@ -636,7 +648,7 @@ def _core_pipeline(processed_path: str, model_path: str, sample_override: int | 
 
     records = []
     planner_samples = []
-    llm_pipeline = _safe_call("llm.init", LLMPipeline, DEFAULT_LLM_MODEL, default=None)
+    llm_pipeline = _init_optional_llm("llm.init", LLMPipeline, DEFAULT_LLM_MODEL)
     llm_limit = min(len(filtered_x), runtime["max_samples"] if demo_mode else 16)
 
     for offset, source_idx in enumerate(high_risk_indices.tolist()):
@@ -713,7 +725,7 @@ def _core_pipeline(processed_path: str, model_path: str, sample_override: int | 
         "policy": PolicyBasedPlanner(),
     }
     if best_planner_name == "llm":
-        best_planner = _safe_call("decision_planner.llm.reinit", LLMPlanner, default=None)
+        best_planner = _init_optional_llm("decision_planner.llm.reinit", LLMPlanner)
         if best_planner is not None:
             planner_instances["llm"] = best_planner
 
@@ -848,4 +860,3 @@ def run_demo_pipeline() -> dict[str, Any]:
         print("---------------------------------")
 
     return summary
-
