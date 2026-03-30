@@ -93,6 +93,21 @@ def _get_feature_gradient_factory():
     return create_feature_gradient_explainer
 
 
+def _load_model_with_fallback(model_path: str, x_train: np.ndarray, y_train: np.ndarray):
+    IDSModelTrainer = _get_model_trainer_class()
+    try:
+        return IDSModelTrainer.load_model(model_path)
+    except Exception as exc:
+        LOGGER.warning("Falling back to rebuilt hybrid architecture for model load: %s", exc)
+        from models.model_factory import get_model
+
+        input_shape = (int(x_train.shape[1]), 1)
+        num_classes = int(len(np.unique(y_train)))
+        model = get_model("hybrid", input_shape=input_shape, num_classes=num_classes)
+        model.load_weights(model_path)
+        return model
+
+
 def _available_ram_gb() -> float:
     if os.path.exists("/proc/meminfo"):
         with open("/proc/meminfo", "r", encoding="utf-8") as handle:
@@ -631,7 +646,7 @@ def _core_pipeline(processed_path: str, model_path: str, sample_override: int | 
 
     IDSModelTrainer = _get_model_trainer_class()
     trainer = IDSModelTrainer(model_type="hybrid", model_save_path=model_path)
-    trainer.model = _safe_call("model.load", IDSModelTrainer.load_model, model_path, default=None)
+    trainer.model = _safe_call("model.load", _load_model_with_fallback, model_path, data["X_train"], data["y_train"], default=None)
     if trainer.model is None:
         return {"status": "failed", "runtime": runtime, "errors": ["model.load failed"], "log_path": str(log_path)}
 
