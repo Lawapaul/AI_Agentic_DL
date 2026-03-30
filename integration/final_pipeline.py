@@ -398,11 +398,13 @@ def _fallback_reasoning(
     decision: str,
 ) -> str:
     feature_text = ", ".join(top_features[:3]) if top_features else "top feature values unavailable"
-    graph_text = graph_output.get("top_neighbors", [])
-    memory_text = memory_output.get("labels", [])
+    graph_text = ", ".join(str(value) for value in graph_output.get("top_neighbors", [])[:2]) or "recent correlated activity"
+    memory_text = ", ".join(str(value) for value in memory_output.get("labels", [])[:2]) or "previous traffic patterns"
+    severity = severity_from_risk(float(risk_score)).upper()
     return (
-        f"Risk {risk_score:.2f}; key signals: {feature_text}; "
-        f"graph={graph_text}; memory={memory_text}; action={decision}."
+        f"{severity.title()} risk detected because the sample aligns with graph neighbors {graph_text} "
+        f"and memory matches {memory_text}. Key contributing features include {feature_text}. "
+        f"Recommended action: {decision}."
     )
 
 
@@ -799,6 +801,11 @@ def _core_pipeline(processed_path: str, model_path: str, sample_override: int | 
                 filtered_x[offset].tolist(),
                 int(filtered_predictions[offset]),
                 float(filtered_confidences[offset]),
+                float(fusion_output["risk_score"]),
+                top_features,
+                float(sample_memory.get("top_similarity", 0.0)),
+                float(sample_graph.get("max_weight", 0.0)),
+                planner_action,
                 default=None,
             )
             if llm_output is not None:

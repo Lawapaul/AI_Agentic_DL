@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 import torch
 from transformers import AutoModelForCausalLM, AutoModelForSeq2SeqLM, AutoTokenizer
 
@@ -27,6 +29,18 @@ class ReasoningGenerator:
 
         self.model.eval()
 
+    @staticmethod
+    def _clean_reasoning(text: str) -> str:
+        cleaned = " ".join(str(text).strip().split())
+        if not cleaned:
+            return ""
+        if re.fullmatch(r"[\[\]\(\)\s,\-0-9.eE]+", cleaned):
+            return ""
+        cleaned = re.sub(r"^\s*(Attack|Reason|Explanation|Output)\s*:\s*", "", cleaned, count=1, flags=re.IGNORECASE)
+        if "[" in cleaned and "]" in cleaned and len(cleaned) < 120:
+            return ""
+        return cleaned.strip()
+
     def generate(self, prompt: str) -> str:
         generation_prompt = prompt if self.task == "seq2seq" else f"{prompt}\nShort reasoning:"
         inputs = self.tokenizer(
@@ -40,11 +54,12 @@ class ReasoningGenerator:
             output_ids = self.model.generate(
                 **inputs,
                 do_sample=False,
-                max_new_tokens=24 if self.task == "seq2seq" else 20,
+                max_new_tokens=72 if self.task == "seq2seq" else 48,
                 pad_token_id=self.tokenizer.pad_token_id,
             )
 
         generated = self.tokenizer.decode(output_ids[0], skip_special_tokens=True)
         if self.prompt_echo and generated.startswith(generation_prompt):
             generated = generated[len(generation_prompt):]
-        return generated.strip() or "Suspicious pattern detected from model, graph, and memory signals."
+        cleaned = self._clean_reasoning(generated)
+        return cleaned or "High risk detected from correlated graph behavior, memory similarity, and the most important network features. Recommended action: Block."
