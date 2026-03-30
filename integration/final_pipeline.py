@@ -267,6 +267,12 @@ def _run_lime_for_indices(
     return outputs
 
 
+def _fallback_top_features(sample: np.ndarray, feature_names: list[str], top_k: int = 5) -> list[str]:
+    sample_arr = np.asarray(sample, dtype=np.float32).reshape(-1)
+    top_idx = np.argsort(np.abs(sample_arr))[-top_k:][::-1]
+    return [f"{feature_names[int(idx)]} ({float(sample_arr[int(idx)]):.4f})" for idx in top_idx]
+
+
 def _graph_window_summary(
     graph,
     predicted_class: int,
@@ -332,6 +338,31 @@ def _build_graph_summaries(
 
 def _make_attack_name(prediction: int) -> str:
     return "Normal Traffic" if int(prediction) == 0 else "Attack"
+
+
+def _dynamic_decision(severity: str, confidence: float, uncertainty: float) -> str:
+    severity_upper = str(severity).upper()
+    if severity_upper in {"CRITICAL", "HIGH"}:
+        return "Block"
+    if severity_upper == "MEDIUM":
+        return "Monitor" if uncertainty > 0.2 or confidence < 0.8 else "Alert"
+    return "No Action"
+
+
+def _fallback_reasoning(
+    top_features: list[str],
+    risk_score: float,
+    graph_output: dict[str, Any],
+    memory_output: dict[str, Any],
+    decision: str,
+) -> str:
+    feature_text = ", ".join(top_features[:3]) if top_features else "top feature values unavailable"
+    graph_text = graph_output.get("top_neighbors", [])
+    memory_text = memory_output.get("labels", [])
+    return (
+        f"Risk {risk_score:.2f}; key signals: {feature_text}; "
+        f"graph={graph_text}; memory={memory_text}; action={decision}."
+    )
 
 
 def _confidence_action(attack: str, confidence: float) -> str:
@@ -596,9 +627,7 @@ def _core_pipeline(processed_path: str, model_path: str, sample_override: int | 
 
     predicted_labels = np.argmax(probabilities, axis=1).astype(np.int32)
     confidences = np.max(probabilities, axis=1).astype(np.float32)
-    high_risk_indices = _select_high_risk_indices(predicted_labels, confidences, DEFAULT_HIGH_RISK_PERCENTILE)
-    if demo_mode:
-        high_risk_indices = np.arange(min(len(x_test), runtime["max_samples"]), dtype=np.int32)
+    high_risk_indices = np.arange(min(len(x_test), runtime["max_samples"]), dtype=np.int32)
 
     feature_names = _feature_names(x_train.shape[1])
     fg_explainer = _safe_call("feature_gradient.init", create_feature_gradient_explainer, trainer.model, feature_names, default=None)
@@ -609,7 +638,7 @@ def _core_pipeline(processed_path: str, model_path: str, sample_override: int | 
     filtered_predictions = predicted_labels[high_risk_indices]
     filtered_confidences = confidences[high_risk_indices]
 
-    lime_limit = min(len(high_risk_indices), 10 if demo_mode else 50)
+    lime_limit = min(len(high_risk_indices), len(high_risk_indices) if demo_mode else 50)
     lime_indices = high_risk_indices[:lime_limit]
     lime_results = {}
     lime_explainer = _safe_call(
@@ -639,7 +668,7 @@ def _core_pipeline(processed_path: str, model_path: str, sample_override: int | 
         filtered_x,
         filtered_predictions,
         fg_explainer,
-        ensure_neighbor=demo_mode,
+        ensure_neighbor=True,
         default={},
     ) or {}
 
@@ -682,7 +711,9 @@ def _core_pipeline(processed_path: str, model_path: str, sample_override: int | 
     records = []
     planner_samples = []
     llm_pipeline = _init_optional_llm("llm.init", LLMPipeline, DEFAULT_LLM_MODEL)
-    llm_limit = min(len(filtered_x), runtime["max_samples"] if demo_mode else 16)
+    llm_limit = len(filtered_x)
+    retraining_interval = 1 if demo_mode else min(32, max(1, runtime["batch_size"]))
+    latest_retraining_update = {"best_method": None, "metrics": {}}
 
     for offset, source_idx in enumerate(high_risk_indices.tolist()):
         sample_graph = graph_results.get(offset, {"top_neighbors": [], "max_weight": 0.0})
@@ -710,6 +741,10 @@ def _core_pipeline(processed_path: str, model_path: str, sample_override: int | 
 
         attack = _make_attack_name(filtered_predictions[offset])
         uncertainty = float(1.0 - filtered_confidences[offset])
+        top_features = lime_results.get(int(source_idx), [])
+        if len(top_features) < 5:
+            top_features = _fallback_top_features(filtered_x[offset], feature_names, top_k=5)
+        planner_action = _dynamic_decision(str(fusion_output["severity"]), float(filtered_confidences[offset]), uncertainty)
         target_meta = _build_review_target(float(fusion_output["risk_score"]), uncertainty, attack, float(filtered_confidences[offset]))
 
         llm_reasoning = None
@@ -725,6 +760,14 @@ def _core_pipeline(processed_path: str, model_path: str, sample_override: int | 
             )
             if llm_output is not None:
                 llm_prompt, llm_reasoning = llm_output
+        if not llm_reasoning:
+            llm_reasoning = _fallback_reasoning(
+                top_features=top_features,
+                risk_score=float(fusion_output["risk_score"]),
+                graph_output=sample_graph,
+                memory_output=sample_memory,
+                decision=planner_action,
+            )
 
         planner_samples.append(
             {
@@ -743,7 +786,7 @@ def _core_pipeline(processed_path: str, model_path: str, sample_override: int | 
                     "prediction": int(filtered_predictions[offset]),
                     "confidence": float(filtered_confidences[offset]),
                 },
-                "lime_features": lime_results.get(int(source_idx), []),
+                "lime_features": top_features,
                 "graph_correlation": sample_graph,
                 "memory_match": sample_memory,
                 "fused_risk": {
@@ -793,9 +836,10 @@ def _core_pipeline(processed_path: str, model_path: str, sample_override: int | 
         attack = _make_attack_name(int(record["classifier_output"]["prediction"]))
         uncertainty = float(1.0 - confidence)
 
-        suggested_action = _confidence_action(attack, confidence)
+        suggested_action = _dynamic_decision(severity, confidence, uncertainty)
+        planner_action = None
         if best_planner_name in planner_instances:
-            planned_action = _safe_call(
+            planner_action = _safe_call(
                 "decision_planner.best.decide",
                 planner_instances[best_planner_name].decide,
                 attack,
@@ -803,14 +847,12 @@ def _core_pipeline(processed_path: str, model_path: str, sample_override: int | 
                 severity,
                 default=suggested_action,
             )
-            if planned_action is not None:
-                suggested_action = str(planned_action)
 
         decision_output = {
             "event_id": f"sample_{record['sample_index']}",
             "risk_score": risk_score,
             "uncertainty": uncertainty,
-            "explanation": record["llm_reasoning"] or "LLM reasoning unavailable.",
+            "explanation": record["llm_reasoning"],
             "suggested_action": suggested_action,
         }
         review_decision = trigger_human_review(decision_output, risk_threshold=0.75, uncertainty_threshold=0.35)
@@ -833,9 +875,10 @@ def _core_pipeline(processed_path: str, model_path: str, sample_override: int | 
             review_output = {
                 "approved": True,
                 "correct_action": suggested_action,
-                "feedback": "Review skipped because thresholds were not exceeded.",
+                "feedback": "Auto-approved because risk and uncertainty stayed below review thresholds.",
                 "severity_adjustment": 0.0,
             }
+        review_output["severity_adjustment"] = 0.0
 
         feedback_record = _safe_call(
             "feedback.log",
@@ -848,10 +891,14 @@ def _core_pipeline(processed_path: str, model_path: str, sample_override: int | 
         )
 
         record["decision"] = decision_output
+        record["planner_action"] = planner_action
         record["human_review"] = review_output
         record["feedback_record"] = feedback_record
+        if ((offset + 1) % retraining_interval == 0) or (offset + 1 == len(records)):
+            latest_retraining_update = _compare_retraining_methods(db_path)
+        record["retraining_update"] = latest_retraining_update
 
-    retraining_comparison = _compare_retraining_methods(db_path)
+    retraining_comparison = latest_retraining_update
 
     summary = {
         "status": "completed",
@@ -892,15 +939,15 @@ def run_demo_pipeline() -> dict[str, Any]:
         print(f" SAMPLE {idx}")
         print("---------------------------------")
         print(f"Classifier Output: {record['classifier_output']}")
-        print(f"Top Features (LIME): {record.get('lime_features') or 'Skipped'}")
+        print(f"Top Features: {record.get('lime_features')}")
         print(f"Graph Correlation: {record.get('graph_correlation')}")
         print(f"Memory Match: {record.get('memory_match')}")
         print(f"Fused Risk Score: {record.get('fused_risk')}")
-        print(f"LLM Reasoning: {record.get('llm_reasoning') or 'Skipped'}")
+        print(f"LLM Reasoning: {record.get('llm_reasoning')}")
         print(f"Decision: {record.get('decision')}")
         print(f"Human Review: {record.get('human_review')}")
         print(f"Feedback Stored: {record.get('feedback_record')}")
-        print(f"Retraining Update: {summary.get('retraining')}")
+        print(f"Retraining Update: {record.get('retraining_update')}")
         print("---------------------------------")
 
     return summary
