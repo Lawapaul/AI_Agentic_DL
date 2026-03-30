@@ -22,7 +22,6 @@ from decision_planner import (
     RiskBasedPlanner,
     RuleBasedPlanner,
 )
-from explainability.feature_gradient_explainer import create_feature_gradient_explainer
 from feedback_store.feedback_db import fetch_feedback, init_db
 from feedback_store.feedback_logger import compute_reward, log_feedback
 from graph_correlation import build_attack_graph, build_attack_profiles, get_top_correlated_classes
@@ -30,7 +29,6 @@ from graph_correlation import fallback_correlate_with_history
 from human_review.review_logic import simulate_human_review, trigger_human_review
 from human_review.schemas import ReviewRequest
 from memory import RuntimeMemoryRetriever
-from models.trainer import IDSModelTrainer
 from retraining import RLTrainer, SupervisedDecisionTrainer, load_feedback_dataset
 from risk_fusion.logistic_regression_fusion import RiskFusion
 from risk_fusion.utils import severity_from_risk
@@ -83,6 +81,18 @@ def _build_llm_pipeline(model_name: str):
     return LLMPipeline(model_name)
 
 
+def _get_model_trainer_class():
+    from models.trainer import IDSModelTrainer
+
+    return IDSModelTrainer
+
+
+def _get_feature_gradient_factory():
+    from explainability.feature_gradient_explainer import create_feature_gradient_explainer
+
+    return create_feature_gradient_explainer
+
+
 def _available_ram_gb() -> float:
     if os.path.exists("/proc/meminfo"):
         with open("/proc/meminfo", "r", encoding="utf-8") as handle:
@@ -103,6 +113,7 @@ def _available_ram_gb() -> float:
 
 
 def _choose_runtime_limits() -> dict[str, Any]:
+    IDSModelTrainer = _get_model_trainer_class()
     ram_gb = _available_ram_gb()
     if ram_gb < 8:
         max_samples = 2000
@@ -618,6 +629,7 @@ def _core_pipeline(processed_path: str, model_path: str, sample_override: int | 
     if data is None:
         return {"status": "failed", "runtime": runtime, "errors": ["data.load failed"], "log_path": str(log_path)}
 
+    IDSModelTrainer = _get_model_trainer_class()
     trainer = IDSModelTrainer(model_type="hybrid", model_save_path=model_path)
     trainer.model = _safe_call("model.load", IDSModelTrainer.load_model, model_path, default=None)
     if trainer.model is None:
@@ -635,6 +647,7 @@ def _core_pipeline(processed_path: str, model_path: str, sample_override: int | 
     high_risk_indices = np.arange(min(len(x_test), runtime["max_samples"]), dtype=np.int32)
 
     feature_names = _feature_names(x_train.shape[1])
+    create_feature_gradient_explainer = _get_feature_gradient_factory()
     fg_explainer = _safe_call("feature_gradient.init", create_feature_gradient_explainer, trainer.model, feature_names, default=None)
     if fg_explainer is None:
         return {"status": "failed", "runtime": runtime, "errors": ["feature_gradient.init failed"], "log_path": str(log_path)}
