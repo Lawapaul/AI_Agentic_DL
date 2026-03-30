@@ -130,22 +130,32 @@ def _available_ram_gb() -> float:
 def _choose_runtime_limits() -> dict[str, Any]:
     IDSModelTrainer = _get_model_trainer_class()
     ram_gb = _available_ram_gb()
-    if ram_gb < 8:
-        max_samples = 2000
-    elif ram_gb < 16:
-        max_samples = 4000
-    elif ram_gb < 24:
-        max_samples = 6000
-    elif ram_gb < 40:
-        max_samples = 8000
+    device = IDSModelTrainer.detect_device()
+    if device == "CPU":
+        if ram_gb < 8:
+            max_samples = 24
+        elif ram_gb < 16:
+            max_samples = 50
+        else:
+            max_samples = 75
     else:
-        max_samples = 10000
+        if ram_gb < 8:
+            max_samples = 2000
+        elif ram_gb < 16:
+            max_samples = 4000
+        elif ram_gb < 24:
+            max_samples = 6000
+        elif ram_gb < 40:
+            max_samples = 8000
+        else:
+            max_samples = 10000
 
-    batch_size = 256 if IDSModelTrainer.detect_device() == "GPU" else 128
+    batch_size = 256 if device == "GPU" else 64
     return {
         "available_ram_gb": round(ram_gb, 2),
         "max_samples": int(max_samples),
         "batch_size": int(batch_size),
+        "device": device,
     }
 
 
@@ -189,7 +199,7 @@ def _load_processed_subset(processed_path: str, max_samples: int) -> dict[str, n
     y_test = np.asarray(_read_array(required["y_test"]), dtype=np.int32).reshape(-1)
 
     train_limit = min(len(x_train), max_samples)
-    test_limit = min(len(x_test), max(256, max_samples // 2))
+    test_limit = min(len(x_test), max_samples)
 
     train_idx = np.arange(train_limit)
     test_idx = np.arange(test_limit)
@@ -671,14 +681,14 @@ def _core_pipeline(processed_path: str, model_path: str, sample_override: int | 
     filtered_predictions = predicted_labels[high_risk_indices]
     filtered_confidences = confidences[high_risk_indices]
 
-    lime_limit = min(len(high_risk_indices), len(high_risk_indices) if demo_mode else 50)
+    lime_limit = min(len(high_risk_indices), len(high_risk_indices) if demo_mode else 8)
     lime_indices = high_risk_indices[:lime_limit]
     lime_results = {}
     lime_explainer = _safe_call(
         "lime.init",
         _build_lime_explainer,
-        x_train[: min(len(x_train), 1024)],
-        data["y_train"][: min(len(data["y_train"]), 1024)],
+        x_train[: min(len(x_train), 128)],
+        data["y_train"][: min(len(data["y_train"]), 128)],
         feature_names,
         default=None,
     )
@@ -707,7 +717,7 @@ def _core_pipeline(processed_path: str, model_path: str, sample_override: int | 
 
     memory_results: dict[int, dict[str, Any]] = {}
     runtime_memory = RuntimeMemoryRetriever(top_k=1, min_similarity=0.5)
-    bank_size = min(len(x_train), 1024 if not demo_mode else 256)
+    bank_size = min(len(x_train), 64 if not demo_mode else 32)
     if CombinedMemory is not None and bank_size > 0 and len(filtered_x) > 0:
         train_embeddings = _safe_call("memory.train_embeddings", _batched_embeddings, trainer, x_train[:bank_size], runtime["batch_size"], default=None)
         train_fg = _safe_call("memory.train_fg", _compute_fg_vectors, fg_explainer, x_train[:bank_size], default=None)
@@ -745,7 +755,7 @@ def _core_pipeline(processed_path: str, model_path: str, sample_override: int | 
     planner_samples = []
     llm_pipeline = _init_optional_llm("llm.init", _build_llm_pipeline, DEFAULT_LLM_MODEL)
     llm_limit = len(filtered_x)
-    retraining_interval = 1 if demo_mode else min(32, max(1, runtime["batch_size"]))
+    retraining_interval = 1 if demo_mode else min(10, max(1, runtime["batch_size"] // 2))
     latest_retraining_update = {"best_method": None, "metrics": {}}
 
     for offset, source_idx in enumerate(high_risk_indices.tolist()):

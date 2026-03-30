@@ -34,18 +34,16 @@ class ReasoningGenerator:
         if self.task == "text2text-generation":
             result = self.generator(
                 prompt,
-                do_sample=True,
-                temperature=0.7,
-                max_new_tokens=48,
+                do_sample=False,
+                max_new_tokens=24,
             )
             return result[0]["generated_text"].strip()
 
         reasoning_prompt = f"{prompt}\nShort reasoning:"
         result = self.generator(
             reasoning_prompt,
-            do_sample=True,
-            temperature=0.7,
-            max_new_tokens=48,
+            do_sample=False,
+            max_new_tokens=20,
             pad_token_id=self.generator.tokenizer.eos_token_id,
         )
         generated = result[0]["generated_text"]
