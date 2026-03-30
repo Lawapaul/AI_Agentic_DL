@@ -17,6 +17,8 @@ class ReasoningGenerator:
         try:
             self.tokenizer = AutoTokenizer.from_pretrained(model)
             self.model = AutoModelForSeq2SeqLM.from_pretrained(model)
+            if hasattr(self.model, "config"):
+                self.model.config.tie_word_embeddings = False
         except Exception:
             self.task = "causal"
             self.prompt_echo = True
