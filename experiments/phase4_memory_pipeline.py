@@ -165,7 +165,11 @@ def _ensure_feature_matrix(X: np.ndarray, name: str) -> np.ndarray:
     return arr
 
 
-def load_processed_data(processed_path: str) -> Dict[str, object]:
+def load_processed_data(
+    processed_path: str,
+    train_limit: Optional[int] = None,
+    test_limit: Optional[int] = None,
+) -> Dict[str, object]:
     X_train = np.load(os.path.join(processed_path, "X_train.npy"))
     X_test = np.load(os.path.join(processed_path, "X_test.npy"))
     y_train = np.load(os.path.join(processed_path, "y_train.npy"))
@@ -182,6 +186,15 @@ def load_processed_data(processed_path: str) -> Dict[str, object]:
         raise ValueError("X_test and y_test sample counts do not match.")
     if X_train.shape[1] != X_test.shape[1]:
         raise ValueError("X_train and X_test feature counts do not match.")
+
+    if train_limit is not None:
+        train_limit = min(int(train_limit), X_train.shape[0])
+        X_train = X_train[:train_limit]
+        y_train = y_train[:train_limit]
+    if test_limit is not None:
+        test_limit = min(int(test_limit), X_test.shape[0])
+        X_test = X_test[:test_limit]
+        y_test = y_test[:test_limit]
 
     return {
         "X_train": X_train,
@@ -302,9 +315,12 @@ def prepare_artifacts(
     embedding_batch_size: int,
     model_path: str,
     processed_path: str,
+    train_limit: Optional[int] = None,
+    test_limit: Optional[int] = None,
+    fg_bank_limit: Optional[int] = None,
 ) -> PipelineArtifacts:
     print(f"Loading processed data from: {processed_path}")
-    data = load_processed_data(processed_path)
+    data = load_processed_data(processed_path, train_limit=train_limit, test_limit=test_limit)
 
     X_train_full = np.asarray(data["X_train"], dtype=np.float32)
     X_test_full = np.asarray(data["X_test"], dtype=np.float32)
@@ -325,15 +341,16 @@ def prepare_artifacts(
     rng = np.random.default_rng(RNG_SEED)
     train_total = int(X_train_full.shape[0])
     test_total = int(X_test_full.shape[0])
-    train_subset_size = min(train_total, MAX_FG_SAMPLES)
-    test_subset_size = min(test_total, MAX_FG_SAMPLES)
+    fg_limit = int(fg_bank_limit) if fg_bank_limit is not None else MAX_FG_SAMPLES
+    train_subset_size = min(train_total, fg_limit)
+    test_subset_size = min(test_total, fg_limit)
 
-    if train_total > MAX_FG_SAMPLES:
+    if train_total > fg_limit:
         train_idx = rng.choice(train_total, size=train_subset_size, replace=False)
     else:
         train_idx = np.arange(train_total)
 
-    if test_total > MAX_FG_SAMPLES:
+    if test_total > fg_limit:
         test_idx = rng.choice(test_total, size=test_subset_size, replace=False)
     else:
         test_idx = np.arange(test_total)
@@ -500,6 +517,9 @@ def run_pipeline(args: argparse.Namespace) -> None:
         embedding_batch_size=int(args.batch_size),
         model_path=args.model_path,
         processed_path=args.processed_path,
+        train_limit=args.train_limit,
+        test_limit=args.test_limit,
+        fg_bank_limit=args.fg_bank_limit,
     )
 
     y_train = np.asarray(artifacts.data["y_train"], dtype=np.int32)
@@ -620,6 +640,9 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--top_k", type=int, default=5, help="Top-k retrieval size")
     parser.add_argument("--batch_size", type=int, default=512, help="Embedding extraction batch size")
+    parser.add_argument("--train_limit", type=int, default=None, help="Optional cap for training samples loaded")
+    parser.add_argument("--test_limit", type=int, default=None, help="Optional cap for test samples loaded")
+    parser.add_argument("--fg_bank_limit", type=int, default=None, help="Optional cap for FG/embedding memory bank subset")
     parser.add_argument("--model_path", type=str, default=MODEL_PATH_DEFAULT, help="Hybrid model path")
     parser.add_argument("--output", type=str, default=RESULT_CSV_DEFAULT, help="Results CSV output path")
     args = parser.parse_args()
@@ -628,6 +651,12 @@ def parse_args() -> argparse.Namespace:
         raise ValueError("--top_k must be > 0")
     if args.batch_size <= 0:
         raise ValueError("--batch_size must be > 0")
+    if args.train_limit is not None and args.train_limit <= 0:
+        raise ValueError("--train_limit must be > 0")
+    if args.test_limit is not None and args.test_limit <= 0:
+        raise ValueError("--test_limit must be > 0")
+    if args.fg_bank_limit is not None and args.fg_bank_limit <= 0:
+        raise ValueError("--fg_bank_limit must be > 0")
     if args.memory is None and not args.compare_all:
         args.compare_all = True
     return args
