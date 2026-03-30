@@ -1,4 +1,6 @@
-"""Human review package."""
+"""Human review package with API objects and pipeline runner."""
+
+from human_review.pipelines import run_human_review
 
 __all__ = [
     "create_app",
@@ -7,4 +9,5 @@ __all__ = [
     "ReviewDecision",
     "ReviewRequest",
     "ReviewResponse",
+    "run_human_review",
 ]
