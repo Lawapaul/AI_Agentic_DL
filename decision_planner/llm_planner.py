@@ -2,23 +2,31 @@
 
 from __future__ import annotations
 
+import torch
+
 
 class LLMPlanner:
     def __init__(self, model: str = "google/flan-t5-small"):
         try:
-            from transformers import pipeline
+            from transformers import AutoModelForCausalLM, AutoModelForSeq2SeqLM, AutoTokenizer
         except Exception as exc:  # pragma: no cover
             raise RuntimeError(
                 "LLMPlanner could not import transformers. Reinstall compatible Colab "
                 "dependencies and restart the runtime before using LLMPlanner."
             ) from exc
 
-        self.task = "text2text-generation"
+        self.task = "seq2seq"
         try:
-            self.generator = pipeline("text2text-generation", model=model, framework="pt", device=-1)
+            self.tokenizer = AutoTokenizer.from_pretrained(model)
+            self.model = AutoModelForSeq2SeqLM.from_pretrained(model)
         except Exception:
-            self.task = "text-generation"
-            self.generator = pipeline("text-generation", model="distilgpt2", framework="pt", device=-1)
+            self.task = "causal"
+            fallback_model = "distilgpt2"
+            self.tokenizer = AutoTokenizer.from_pretrained(fallback_model)
+            self.model = AutoModelForCausalLM.from_pretrained(fallback_model)
+        if self.tokenizer.pad_token_id is None:
+            self.tokenizer.pad_token = self.tokenizer.eos_token
+        self.model.eval()
         self.examples = []
 
     def fit(self, attacks, confidences, severities, targets, max_examples: int = 4):
@@ -57,17 +65,26 @@ No Action / Monitor / Alert / Block
 Output ONLY one word.
 """.strip()
 
-        if self.task == "text2text-generation":
-            result = self.generator(prompt, do_sample=False, max_new_tokens=10)
-            return result[0]["generated_text"].strip()
-
-        result = self.generator(
-            f"{prompt}\nAction:",
-            do_sample=False,
-            max_new_tokens=6,
-            pad_token_id=self.generator.tokenizer.eos_token_id,
+        generation_prompt = prompt if self.task == "seq2seq" else f"{prompt}\nAction:"
+        inputs = self.tokenizer(
+            generation_prompt,
+            return_tensors="pt",
+            truncation=True,
+            max_length=256,
         )
-        generated = result[0]["generated_text"].split("Action:", 1)[-1].strip()
+
+        with torch.no_grad():
+            output_ids = self.model.generate(
+                **inputs,
+                do_sample=False,
+                max_new_tokens=10 if self.task == "seq2seq" else 6,
+                pad_token_id=self.tokenizer.pad_token_id,
+            )
+
+        generated = self.tokenizer.decode(output_ids[0], skip_special_tokens=True)
+        if self.task == "causal" and generated.startswith(generation_prompt):
+            generated = generated[len(generation_prompt):]
+        generated = generated.split("Action:", 1)[-1].strip()
         action = generated.split()[0] if generated else "Monitor"
         if action not in {"No", "Monitor", "Alert", "Block"}:
             return "Monitor"
