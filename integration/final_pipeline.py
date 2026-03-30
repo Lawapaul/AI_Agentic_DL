@@ -7,6 +7,7 @@ import logging
 import math
 import os
 import platform
+import shutil
 from collections import Counter
 from pathlib import Path
 from typing import Any
@@ -615,6 +616,45 @@ def _resolve_results_dir(processed_path: str) -> Path:
     return project_root / "experiments" / "results" / "final_pipeline"
 
 
+def _resolve_drive_results_dir(processed_path: str) -> Path | None:
+    processed = Path(processed_path).resolve()
+    drive_root = Path("/content/drive/MyDrive")
+    if str(processed).startswith(str(drive_root)):
+        return _resolve_results_dir(processed_path)
+
+    candidate_roots = [
+        drive_root / "Deep Learning Project" / "AI Agentic",
+        drive_root / "AI Agentic",
+    ]
+    for root in candidate_roots:
+        if root.exists():
+            return root / "experiments" / "results" / "final_pipeline"
+    return None
+
+
+def _export_results_to_drive(local_results_dir: Path, drive_results_dir: Path | None) -> list[str]:
+    if drive_results_dir is None:
+        return []
+
+    drive_results_dir.mkdir(parents=True, exist_ok=True)
+    exported_paths: list[str] = []
+    for name in [
+        "feedback.db",
+        "feedback_log.jsonl",
+        "feedback_log.parquet",
+        "final_pipeline.log",
+        "full_pipeline_summary.json",
+        "demo_pipeline_summary.json",
+    ]:
+        source = local_results_dir / name
+        if not source.exists():
+            continue
+        target = drive_results_dir / name
+        shutil.copy2(source, target)
+        exported_paths.append(str(target))
+    return exported_paths
+
+
 def _resolve_default_paths() -> tuple[str, str]:
     candidates = [
         (
@@ -640,6 +680,7 @@ def _resolve_default_paths() -> tuple[str, str]:
 
 def _core_pipeline(processed_path: str, model_path: str, sample_override: int | None = None, demo_mode: bool = False) -> dict[str, Any]:
     results_dir = _resolve_results_dir(processed_path)
+    drive_results_dir = _resolve_drive_results_dir(processed_path)
     log_path = _setup_logging(results_dir)
     runtime = _choose_runtime_limits()
     if sample_override is not None:
@@ -969,6 +1010,19 @@ def _core_pipeline(processed_path: str, model_path: str, sample_override: int | 
 
     summary_path = results_dir / ("demo_pipeline_summary.json" if demo_mode else "full_pipeline_summary.json")
     summary_path.write_text(json.dumps(summary, indent=2, default=str), encoding="utf-8")
+    drive_exports = _safe_call(
+        "results.export_drive",
+        _export_results_to_drive,
+        results_dir,
+        drive_results_dir,
+        default=[],
+    ) or []
+    summary["drive_results_dir"] = str(drive_results_dir) if drive_results_dir is not None else None
+    summary["drive_exports"] = drive_exports
+    summary_path.write_text(json.dumps(summary, indent=2, default=str), encoding="utf-8")
+    if drive_results_dir is not None:
+        drive_summary_path = drive_results_dir / summary_path.name
+        drive_summary_path.write_text(json.dumps(summary, indent=2, default=str), encoding="utf-8")
     return summary
 
 
