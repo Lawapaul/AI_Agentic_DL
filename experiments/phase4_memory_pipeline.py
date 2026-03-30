@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import os
 import subprocess
+import sys
 import time
 from dataclasses import dataclass
 from typing import Dict, Iterable, List, Optional, Tuple
@@ -16,6 +17,10 @@ from typing import Dict, Iterable, List, Optional, Tuple
 import numpy as np
 import pandas as pd
 import tensorflow as tf
+
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if REPO_ROOT not in sys.path:
+    sys.path.insert(0, REPO_ROOT)
 
 from explainability.feature_gradient_explainer import create_feature_gradient_explainer
 from graph_correlation import build_attack_graph, build_attack_profiles, validate_attack_graph
