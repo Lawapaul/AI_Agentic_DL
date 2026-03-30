@@ -3,6 +3,7 @@
 from .graph_correlation import (
     build_attack_graph,
     build_attack_profiles,
+    fallback_correlate_with_history,
     get_top_correlated_classes,
     get_top_correlated_pairs,
     validate_attack_graph,

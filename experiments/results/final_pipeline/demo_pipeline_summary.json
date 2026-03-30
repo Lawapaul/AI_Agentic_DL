@@ -1,0 +1,870 @@
+{
+  "status": "completed",
+  "runtime": {
+    "available_ram_gb": 11.01,
+    "max_samples": 8,
+    "batch_size": 64,
+    "device": "CPU",
+    "demo_mode": true,
+    "platform": "Linux-6.6.113+-x86_64-with-glibc2.35"
+  },
+  "processed_path": "/content/drive/MyDrive/Deep Learning Project/AI Agentic/data/processed",
+  "model_path": "/content/drive/MyDrive/Deep Learning Project/AI Agentic/saved_models/hybrid_cnn_lstm_full_2_2m.keras",
+  "results_dir": "/content/drive/MyDrive/Deep Learning Project/AI Agentic/experiments/results/final_pipeline",
+  "db_path": "/content/drive/MyDrive/Deep Learning Project/AI Agentic/experiments/results/final_pipeline/feedback.db",
+  "log_path": "/content/drive/MyDrive/Deep Learning Project/AI Agentic/experiments/results/final_pipeline/final_pipeline.log",
+  "classifier": {
+    "evaluated_samples": 8,
+    "high_risk_samples": 8
+  },
+  "decision_planner": {
+    "best_planner": "rule_based",
+    "metrics": {
+      "rule_based": {
+        "accuracy": 0.875,
+        "consistency": 1.0,
+        "reward": 0.802,
+        "majority_action": "Alert"
+      },
+      "confidence_based": {
+        "accuracy": 0.0,
+        "consistency": 1.0,
+        "reward": -1.092,
+        "majority_action": "No Action"
+      },
+      "risk_based": {
+        "accuracy": 0.0,
+        "consistency": 1.0,
+        "reward": -1.092,
+        "majority_action": "No Action"
+      },
+      "hybrid": {
+        "accuracy": 0.0,
+        "consistency": 1.0,
+        "reward": -1.092,
+        "majority_action": "No Action"
+      },
+      "rl": {
+        "accuracy": 0.875,
+        "consistency": 1.0,
+        "reward": 0.802,
+        "majority_action": "Alert"
+      },
+      "policy": {
+        "accuracy": 0.875,
+        "consistency": 1.0,
+        "reward": 0.802,
+        "majority_action": "Alert"
+      },
+      "llm": {
+        "accuracy": 0.0,
+        "consistency": 1.0,
+        "reward": -1.092,
+        "majority_action": "No Action"
+      }
+    }
+  },
+  "retraining": {
+    "best_method": "rl_trainer",
+    "metrics": {
+      "rl_trainer": {
+        "accuracy": 0.7191991786447639,
+        "consistency": 1.0,
+        "reward": 0.4383983572895277
+      },
+      "supervised_trainer": {
+        "accuracy": 0.7186858316221766,
+        "consistency": 1.0,
+        "reward": 0.43737166324435317,
+        "training_summary": {
+          "epochs": 20,
+          "loss": 0.6289036273956299,
+          "samples": 1948
+        }
+      }
+    }
+  },
+  "records": [
+    {
+      "sample_index": 0,
+      "classifier_output": {
+        "prediction": 0,
+        "confidence": 0.999997079372406
+      },
+      "lime_features": [
+        "feature_70 (-0.0008)",
+        "feature_72 (-0.0007)",
+        "feature_40 (-0.0003)",
+        "feature_53 (-0.0003)",
+        "feature_1 (0.0003)",
+        "feature_7 (-0.0003)",
+        "feature_20 (0.0002)",
+        "feature_38 (0.0002)"
+      ],
+      "graph_correlation": {
+        "top_neighbors": [
+          {
+            "sample_id": "sample_-1",
+            "weight": 0.5
+          }
+        ],
+        "max_weight": 0.5
+      },
+      "memory_match": {
+        "labels": [
+          0
+        ],
+        "similarities": [
+          0.5
+        ],
+        "top_similarity": 0.5
+      },
+      "fused_risk": {
+        "risk_score": 0.6750014199533325,
+        "severity": "HIGH"
+      },
+      "llm_reasoning": "High risk detected from correlated graph behavior, memory similarity, and the most important network features. Recommended action: Block.",
+      "llm_prompt": "You are a cybersecurity expert analyzing network traffic.\n\nInput:\n- Predicted Attack Type: Normal Traffic\n- Confidence Score: High (1.00)\n- Risk Score: 0.68\n- Top Features: feature_70, feature_72, feature_40\n- Memory Similarity: 0.50\n- Graph Correlation Weight: 0.50\n- Recommended Action: Block\n- Feature Summary: [2.288, -0.44, -0.008, -0.01, -0.051, -0.007, -0.246, -0.211, -0.236, -0.194]\n\nAnalyze carefully using cybersecurity knowledge.\n\nTasks:\n1. Explain what this attack means in plain English\n2. Explain why this sample is risky using the top features, memory similarity, and graph correlation\n3. Mention whether confidence is high, medium, or low\n4. End with a recommended action sentence\n\nIMPORTANT:\n- Output exactly 2 to 4 sentences\n- Use human-readable cybersecurity language\n- Do NOT output numeric arrays, Python lists, logits, or JSON\n- Mention the top features by name\n- End with: Recommended action: Block.",
+      "planner_target": {
+        "target_action": "Alert",
+        "severity_adjustment": 0.07,
+        "review": {
+          "approved": false,
+          "correct_action": "Alert",
+          "feedback": "Adjusted action to Alert based on risk and uncertainty.",
+          "severity_adjustment": 0.07,
+          "reviewer_id": "simulated-analyst",
+          "reviewed_at": "2026-03-30 10:06:04.805788"
+        }
+      },
+      "decision": {
+        "event_id": "sample_0",
+        "risk_score": 0.6750014199533325,
+        "uncertainty": 2.9206275939941406e-06,
+        "explanation": "High risk detected from correlated graph behavior, memory similarity, and the most important network features. Recommended action: Block.",
+        "suggested_action": "Block"
+      },
+      "planner_action": "Alert",
+      "human_review": {
+        "approved": true,
+        "correct_action": "Block",
+        "feedback": "Auto-approved because risk and uncertainty stayed below review thresholds.",
+        "severity_adjustment": 0.0
+      },
+      "feedback_record": {
+        "id": 1941,
+        "event_id": "sample_0",
+        "state": "{\"risk_score\": 0.6750014199533325, \"uncertainty\": 2.9206275939941406e-06, \"suggested_action\": \"Block\", \"explanation\": \"High risk detected from correlated graph behavior, memory similarity, and the most important network features. Recommended action: Block.\"}",
+        "action_taken": "Block",
+        "human_action": "Block",
+        "reward": 1.0,
+        "timestamp": "2026-03-30T10:06:22.648417+00:00"
+      },
+      "retraining_update": {
+        "best_method": "rl_trainer",
+        "metrics": {
+          "rl_trainer": {
+            "accuracy": 0.7187017001545595,
+            "consistency": 1.0,
+            "reward": 0.437403400309119
+          },
+          "supervised_trainer": {
+            "accuracy": 0.7181865018031942,
+            "consistency": 1.0,
+            "reward": 0.4363730036063885,
+            "training_summary": {
+              "epochs": 20,
+              "loss": 0.6584978103637695,
+              "samples": 1941
+            }
+          }
+        }
+      }
+    },
+    {
+      "sample_index": 1,
+      "classifier_output": {
+        "prediction": 0,
+        "confidence": 0.9999881386756897
+      },
+      "lime_features": [
+        "feature_70 (-0.0005)",
+        "feature_72 (-0.0005)",
+        "feature_52 (-0.0004)",
+        "feature_37 (-0.0003)",
+        "feature_8 (-0.0002)",
+        "feature_64 (-0.0002)",
+        "feature_0 (0.0002)",
+        "feature_47 (-0.0001)"
+      ],
+      "graph_correlation": {
+        "top_neighbors": [
+          {
+            "sample_id": "sample_0",
+            "weight": 0.9995802044868469
+          }
+        ],
+        "max_weight": 0.9995802044868469
+      },
+      "memory_match": {
+        "labels": [
+          0
+        ],
+        "similarities": [
+          0.9995802640914917
+        ],
+        "top_similarity": 0.9995802640914917
+      },
+      "fused_risk": {
+        "risk_score": 0.899817906471435,
+        "severity": "CRITICAL"
+      },
+      "llm_reasoning": "High risk detected from correlated graph behavior, memory similarity, and the most important network features. Recommended action: Block.",
+      "llm_prompt": "You are a cybersecurity expert analyzing network traffic.\n\nInput:\n- Predicted Attack Type: Normal Traffic\n- Confidence Score: High (1.00)\n- Risk Score: 0.90\n- Top Features: feature_70, feature_72, feature_52\n- Memory Similarity: 1.00\n- Graph Correlation Weight: 1.00\n- Recommended Action: Block\n- Feature Summary: [2.289, -0.439, -0.006, -0.01, -0.052, -0.007, -0.281, -0.211, -0.281, -0.245]\n\nAnalyze carefully using cybersecurity knowledge.\n\nTasks:\n1. Explain what this attack means in plain English\n2. Explain why this sample is risky using the top features, memory similarity, and graph correlation\n3. Mention whether confidence is high, medium, or low\n4. End with a recommended action sentence\n\nIMPORTANT:\n- Output exactly 2 to 4 sentences\n- Use human-readable cybersecurity language\n- Do NOT output numeric arrays, Python lists, logits, or JSON\n- Mention the top features by name\n- End with: Recommended action: Block.",
+      "planner_target": {
+        "target_action": "Block",
+        "severity_adjustment": 0.16,
+        "review": {
+          "approved": false,
+          "correct_action": "Block",
+          "feedback": "Adjusted action to Block based on risk and uncertainty.",
+          "severity_adjustment": 0.16,
+          "reviewer_id": "simulated-analyst",
+          "reviewed_at": "2026-03-30 10:06:06.557083"
+        }
+      },
+      "decision": {
+        "event_id": "sample_1",
+        "risk_score": 0.899817906471435,
+        "uncertainty": 1.1861324310302734e-05,
+        "explanation": "High risk detected from correlated graph behavior, memory similarity, and the most important network features. Recommended action: Block.",
+        "suggested_action": "Block"
+      },
+      "planner_action": "Alert",
+      "human_review": {
+        "approved": false,
+        "correct_action": "Block",
+        "feedback": "Adjusted action to Block based on risk and uncertainty.",
+        "severity_adjustment": 0.0,
+        "reviewer_id": "simulated-analyst",
+        "reviewed_at": "2026-03-30 10:06:23.173867"
+      },
+      "feedback_record": {
+        "id": 1942,
+        "event_id": "sample_1",
+        "state": "{\"risk_score\": 0.899817906471435, \"uncertainty\": 1.1861324310302734e-05, \"suggested_action\": \"Block\", \"explanation\": \"High risk detected from correlated graph behavior, memory similarity, and the most important network features. Recommended action: Block.\"}",
+        "action_taken": "Block",
+        "human_action": "Block",
+        "reward": 1.0,
+        "timestamp": "2026-03-30T10:06:23.173943+00:00"
+      },
+      "retraining_update": {
+        "best_method": "rl_trainer",
+        "metrics": {
+          "rl_trainer": {
+            "accuracy": 0.7188465499485067,
+            "consistency": 1.0,
+            "reward": 0.4376930998970134
+          },
+          "supervised_trainer": {
+            "accuracy": 0.7183316168898043,
+            "consistency": 1.0,
+            "reward": 0.43666323377960864,
+            "training_summary": {
+              "epochs": 20,
+              "loss": 0.6846131086349487,
+              "samples": 1942
+            }
+          }
+        }
+      }
+    },
+    {
+      "sample_index": 2,
+      "classifier_output": {
+        "prediction": 0,
+        "confidence": 0.999998152256012
+      },
+      "lime_features": [
+        "feature_0 (0.0000)",
+        "feature_1 (0.0000)",
+        "feature_2 (0.0000)",
+        "feature_3 (0.0000)",
+        "feature_4 (0.0000)",
+        "feature_5 (0.0000)",
+        "feature_6 (0.0000)",
+        "feature_7 (0.0000)"
+      ],
+      "graph_correlation": {
+        "top_neighbors": [
+          {
+            "sample_id": "sample_1",
+            "weight": 0.5
+          }
+        ],
+        "max_weight": 0.5
+      },
+      "memory_match": {
+        "labels": [
+          0
+        ],
+        "similarities": [
+          0.5
+        ],
+        "top_similarity": 0.5
+      },
+      "fused_risk": {
+        "risk_score": 0.6750002726799721,
+        "severity": "HIGH"
+      },
+      "llm_reasoning": "Feature Summary: [2.644, -0.44, -0.01, -0.055, -0.007, -0.007, -0.007, -0.007, -0.007, -0.007, -0.007, -0.007, -0.007, -0.007, -",
+      "llm_prompt": "You are a cybersecurity expert analyzing network traffic.\n\nInput:\n- Predicted Attack Type: Normal Traffic\n- Confidence Score: High (1.00)\n- Risk Score: 0.68\n- Top Features: feature_0, feature_1, feature_2\n- Memory Similarity: 0.50\n- Graph Correlation Weight: 0.50\n- Recommended Action: Block\n- Feature Summary: [2.644, -0.44, -0.01, -0.01, -0.055, -0.007, -0.29, -0.31, -0.313, -0.245]\n\nAnalyze carefully using cybersecurity knowledge.\n\nTasks:\n1. Explain what this attack means in plain English\n2. Explain why this sample is risky using the top features, memory similarity, and graph correlation\n3. Mention whether confidence is high, medium, or low\n4. End with a recommended action sentence\n\nIMPORTANT:\n- Output exactly 2 to 4 sentences\n- Use human-readable cybersecurity language\n- Do NOT output numeric arrays, Python lists, logits, or JSON\n- Mention the top features by name\n- End with: Recommended action: Block.",
+      "planner_target": {
+        "target_action": "Alert",
+        "severity_adjustment": 0.07,
+        "review": {
+          "approved": false,
+          "correct_action": "Alert",
+          "feedback": "Adjusted action to Alert based on risk and uncertainty.",
+          "severity_adjustment": 0.07,
+          "reviewer_id": "simulated-analyst",
+          "reviewed_at": "2026-03-30 10:06:08.234183"
+        }
+      },
+      "decision": {
+        "event_id": "sample_2",
+        "risk_score": 0.6750002726799721,
+        "uncertainty": 1.8477439880371094e-06,
+        "explanation": "Feature Summary: [2.644, -0.44, -0.01, -0.055, -0.007, -0.007, -0.007, -0.007, -0.007, -0.007, -0.007, -0.007, -0.007, -0.007, -",
+        "suggested_action": "Block"
+      },
+      "planner_action": "Alert",
+      "human_review": {
+        "approved": true,
+        "correct_action": "Block",
+        "feedback": "Auto-approved because risk and uncertainty stayed below review thresholds.",
+        "severity_adjustment": 0.0
+      },
+      "feedback_record": {
+        "id": 1943,
+        "event_id": "sample_2",
+        "state": "{\"risk_score\": 0.6750002726799721, \"uncertainty\": 1.8477439880371094e-06, \"suggested_action\": \"Block\", \"explanation\": \"Feature Summary: [2.644, -0.44, -0.01, -0.055, -0.007, -0.007, -0.007, -0.007, -0.007, -0.007, -0.007, -0.007, -0.007, -0.007, -\"}",
+        "action_taken": "Block",
+        "human_action": "Block",
+        "reward": 1.0,
+        "timestamp": "2026-03-30T10:06:23.701149+00:00"
+      },
+      "retraining_update": {
+        "best_method": "rl_trainer",
+        "metrics": {
+          "rl_trainer": {
+            "accuracy": 0.718991250643335,
+            "consistency": 1.0,
+            "reward": 0.4379825012866701
+          },
+          "supervised_trainer": {
+            "accuracy": 0.7184765826042203,
+            "consistency": 1.0,
+            "reward": 0.4369531652084406,
+            "training_summary": {
+              "epochs": 20,
+              "loss": 0.6688277125358582,
+              "samples": 1943
+            }
+          }
+        }
+      }
+    },
+    {
+      "sample_index": 3,
+      "classifier_output": {
+        "prediction": 0,
+        "confidence": 0.9999991059303284
+      },
+      "lime_features": [
+        "feature_41 (-0.0002)",
+        "feature_8 (-0.0002)",
+        "feature_67 (-0.0002)",
+        "feature_53 (0.0001)",
+        "feature_63 (0.0001)",
+        "feature_4 (0.0001)",
+        "feature_9 (-0.0001)",
+        "feature_6 (-0.0000)"
+      ],
+      "graph_correlation": {
+        "top_neighbors": [
+          {
+            "sample_id": "sample_2",
+            "weight": 0.5
+          }
+        ],
+        "max_weight": 0.5
+      },
+      "memory_match": {
+        "labels": [
+          0
+        ],
+        "similarities": [
+          0.5
+        ],
+        "top_similarity": 0.5
+      },
+      "fused_risk": {
+        "risk_score": 0.6750000941184225,
+        "severity": "HIGH"
+      },
+      "llm_reasoning": "High risk detected from correlated graph behavior, memory similarity, and the most important network features. Recommended action: Block.",
+      "llm_prompt": "You are a cybersecurity expert analyzing network traffic.\n\nInput:\n- Predicted Attack Type: Normal Traffic\n- Confidence Score: High (1.00)\n- Risk Score: 0.68\n- Top Features: feature_41, feature_8, feature_67\n- Memory Similarity: 0.50\n- Graph Correlation Weight: 0.50\n- Recommended Action: Block\n- Feature Summary: [-0.417, -0.427, -0.004, -0.002, 0.101, -0.007, 1.434, -0.31, 1.081, 1.486]\n\nAnalyze carefully using cybersecurity knowledge.\n\nTasks:\n1. Explain what this attack means in plain English\n2. Explain why this sample is risky using the top features, memory similarity, and graph correlation\n3. Mention whether confidence is high, medium, or low\n4. End with a recommended action sentence\n\nIMPORTANT:\n- Output exactly 2 to 4 sentences\n- Use human-readable cybersecurity language\n- Do NOT output numeric arrays, Python lists, logits, or JSON\n- Mention the top features by name\n- End with: Recommended action: Block.",
+      "planner_target": {
+        "target_action": "Alert",
+        "severity_adjustment": 0.07,
+        "review": {
+          "approved": false,
+          "correct_action": "Alert",
+          "feedback": "Adjusted action to Alert based on risk and uncertainty.",
+          "severity_adjustment": 0.07,
+          "reviewer_id": "simulated-analyst",
+          "reviewed_at": "2026-03-30 10:06:10.550250"
+        }
+      },
+      "decision": {
+        "event_id": "sample_3",
+        "risk_score": 0.6750000941184225,
+        "uncertainty": 8.940696716308594e-07,
+        "explanation": "High risk detected from correlated graph behavior, memory similarity, and the most important network features. Recommended action: Block.",
+        "suggested_action": "Block"
+      },
+      "planner_action": "Alert",
+      "human_review": {
+        "approved": true,
+        "correct_action": "Block",
+        "feedback": "Auto-approved because risk and uncertainty stayed below review thresholds.",
+        "severity_adjustment": 0.0
+      },
+      "feedback_record": {
+        "id": 1944,
+        "event_id": "sample_3",
+        "state": "{\"risk_score\": 0.6750000941184225, \"uncertainty\": 8.940696716308594e-07, \"suggested_action\": \"Block\", \"explanation\": \"High risk detected from correlated graph behavior, memory similarity, and the most important network features. Recommended action: Block.\"}",
+        "action_taken": "Block",
+        "human_action": "Block",
+        "reward": 1.0,
+        "timestamp": "2026-03-30T10:06:24.224521+00:00"
+      },
+      "retraining_update": {
+        "best_method": "rl_trainer",
+        "metrics": {
+          "rl_trainer": {
+            "accuracy": 0.7191358024691358,
+            "consistency": 1.0,
+            "reward": 0.4382716049382716
+          },
+          "supervised_trainer": {
+            "accuracy": 0.7186213991769548,
+            "consistency": 1.0,
+            "reward": 0.43724279835390945,
+            "training_summary": {
+              "epochs": 20,
+              "loss": 0.7468578219413757,
+              "samples": 1944
+            }
+          }
+        }
+      }
+    },
+    {
+      "sample_index": 4,
+      "classifier_output": {
+        "prediction": 0,
+        "confidence": 0.8474025130271912
+      },
+      "lime_features": [
+        "feature_72 (-0.0005)",
+        "feature_70 (-0.0005)",
+        "feature_35 (-0.0003)",
+        "feature_67 (-0.0003)",
+        "feature_66 (-0.0002)",
+        "feature_11 (-0.0002)",
+        "feature_38 (0.0002)",
+        "feature_53 (-0.0002)"
+      ],
+      "graph_correlation": {
+        "top_neighbors": [
+          {
+            "sample_id": "sample_3",
+            "weight": 0.7305527925491333
+          }
+        ],
+        "max_weight": 0.7305527925491333
+      },
+      "memory_match": {
+        "labels": [
+          0
+        ],
+        "similarities": [
+          0.7305527925491333
+        ],
+        "top_similarity": 0.7305527925491333
+      },
+      "fused_risk": {
+        "risk_score": 0.810079887509346,
+        "severity": "CRITICAL"
+      },
+      "llm_reasoning": "Feature Summary: [-0.037, -0.037, -0.008, -0.039, -0.039, -0.039, -0.039, -0.039, -0.039, -0.039, -0.039, -0.039, -0.039, -0.0",
+      "llm_prompt": "You are a cybersecurity expert analyzing network traffic.\n\nInput:\n- Predicted Attack Type: Normal Traffic\n- Confidence Score: High (0.85)\n- Risk Score: 0.81\n- Top Features: feature_72, feature_70, feature_35\n- Memory Similarity: 0.73\n- Graph Correlation Weight: 0.73\n- Recommended Action: Block\n- Feature Summary: [-0.437, -0.262, -0.008, -0.009, -0.054, -0.007, -0.281, -0.31, -0.291, -0.233]\n\nAnalyze carefully using cybersecurity knowledge.\n\nTasks:\n1. Explain what this attack means in plain English\n2. Explain why this sample is risky using the top features, memory similarity, and graph correlation\n3. Mention whether confidence is high, medium, or low\n4. End with a recommended action sentence\n\nIMPORTANT:\n- Output exactly 2 to 4 sentences\n- Use human-readable cybersecurity language\n- Do NOT output numeric arrays, Python lists, logits, or JSON\n- Mention the top features by name\n- End with: Recommended action: Block.",
+      "planner_target": {
+        "target_action": "Alert",
+        "severity_adjustment": 0.124,
+        "review": {
+          "approved": false,
+          "correct_action": "Alert",
+          "feedback": "Adjusted action to Alert based on risk and uncertainty.",
+          "severity_adjustment": 0.124,
+          "reviewer_id": "simulated-analyst",
+          "reviewed_at": "2026-03-30 10:06:12.196437"
+        }
+      },
+      "decision": {
+        "event_id": "sample_4",
+        "risk_score": 0.810079887509346,
+        "uncertainty": 0.15259748697280884,
+        "explanation": "Feature Summary: [-0.037, -0.037, -0.008, -0.039, -0.039, -0.039, -0.039, -0.039, -0.039, -0.039, -0.039, -0.039, -0.039, -0.0",
+        "suggested_action": "Block"
+      },
+      "planner_action": "Alert",
+      "human_review": {
+        "approved": false,
+        "correct_action": "Alert",
+        "feedback": "Adjusted action to Alert based on risk and uncertainty.",
+        "severity_adjustment": 0.0,
+        "reviewer_id": "simulated-analyst",
+        "reviewed_at": "2026-03-30 10:06:24.759910"
+      },
+      "feedback_record": {
+        "id": 1945,
+        "event_id": "sample_4",
+        "state": "{\"risk_score\": 0.810079887509346, \"uncertainty\": 0.15259748697280884, \"suggested_action\": \"Block\", \"explanation\": \"Feature Summary: [-0.037, -0.037, -0.008, -0.039, -0.039, -0.039, -0.039, -0.039, -0.039, -0.039, -0.039, -0.039, -0.039, -0.0\"}",
+        "action_taken": "Block",
+        "human_action": "Alert",
+        "reward": -1.0,
+        "timestamp": "2026-03-30T10:06:24.759998+00:00"
+      },
+      "retraining_update": {
+        "best_method": "rl_trainer",
+        "metrics": {
+          "rl_trainer": {
+            "accuracy": 0.7187660668380462,
+            "consistency": 1.0,
+            "reward": 0.43753213367609256
+          },
+          "supervised_trainer": {
+            "accuracy": 0.7182519280205656,
+            "consistency": 1.0,
+            "reward": 0.4365038560411311,
+            "training_summary": {
+              "epochs": 20,
+              "loss": 0.6632283926010132,
+              "samples": 1945
+            }
+          }
+        }
+      }
+    },
+    {
+      "sample_index": 5,
+      "classifier_output": {
+        "prediction": 0,
+        "confidence": 0.9999995827674866
+      },
+      "lime_features": [
+        "feature_36 (-0.0000)",
+        "feature_14 (-0.0000)",
+        "feature_15 (-0.0000)",
+        "feature_7 (-0.0000)",
+        "feature_38 (-0.0000)",
+        "feature_51 (0.0000)",
+        "feature_69 (-0.0000)",
+        "feature_0 (-0.0000)"
+      ],
+      "graph_correlation": {
+        "top_neighbors": [
+          {
+            "sample_id": "sample_4",
+            "weight": 0.5
+          }
+        ],
+        "max_weight": 0.5
+      },
+      "memory_match": {
+        "labels": [
+          0
+        ],
+        "similarities": [
+          0.6531117558479309
+        ],
+        "top_similarity": 0.6531117558479309
+      },
+      "fused_risk": {
+        "risk_score": 0.7132779278140674,
+        "severity": "HIGH"
+      },
+      "llm_reasoning": "High risk detected from correlated graph behavior, memory similarity, and the most important network features. Recommended action: Block.",
+      "llm_prompt": "You are a cybersecurity expert analyzing network traffic.\n\nInput:\n- Predicted Attack Type: Normal Traffic\n- Confidence Score: High (1.00)\n- Risk Score: 0.71\n- Top Features: feature_36, feature_14, feature_15\n- Memory Similarity: 0.65\n- Graph Correlation Weight: 0.50\n- Recommended Action: Block\n- Feature Summary: [2.251, -0.44, -0.01, -0.01, -0.043, -0.007, -0.203, 0.717, 0.02, -0.245]\n\nAnalyze carefully using cybersecurity knowledge.\n\nTasks:\n1. Explain what this attack means in plain English\n2. Explain why this sample is risky using the top features, memory similarity, and graph correlation\n3. Mention whether confidence is high, medium, or low\n4. End with a recommended action sentence\n\nIMPORTANT:\n- Output exactly 2 to 4 sentences\n- Use human-readable cybersecurity language\n- Do NOT output numeric arrays, Python lists, logits, or JSON\n- Mention the top features by name\n- End with: Recommended action: Block.",
+      "planner_target": {
+        "target_action": "Alert",
+        "severity_adjustment": 0.085,
+        "review": {
+          "approved": false,
+          "correct_action": "Alert",
+          "feedback": "Adjusted action to Alert based on risk and uncertainty.",
+          "severity_adjustment": 0.085,
+          "reviewer_id": "simulated-analyst",
+          "reviewed_at": "2026-03-30 10:06:15.432254"
+        }
+      },
+      "decision": {
+        "event_id": "sample_5",
+        "risk_score": 0.7132779278140674,
+        "uncertainty": 4.172325134277344e-07,
+        "explanation": "High risk detected from correlated graph behavior, memory similarity, and the most important network features. Recommended action: Block.",
+        "suggested_action": "Block"
+      },
+      "planner_action": "Alert",
+      "human_review": {
+        "approved": true,
+        "correct_action": "Block",
+        "feedback": "Auto-approved because risk and uncertainty stayed below review thresholds.",
+        "severity_adjustment": 0.0
+      },
+      "feedback_record": {
+        "id": 1946,
+        "event_id": "sample_5",
+        "state": "{\"risk_score\": 0.7132779278140674, \"uncertainty\": 4.172325134277344e-07, \"suggested_action\": \"Block\", \"explanation\": \"High risk detected from correlated graph behavior, memory similarity, and the most important network features. Recommended action: Block.\"}",
+        "action_taken": "Block",
+        "human_action": "Block",
+        "reward": 1.0,
+        "timestamp": "2026-03-30T10:06:25.285926+00:00"
+      },
+      "retraining_update": {
+        "best_method": "rl_trainer",
+        "metrics": {
+          "rl_trainer": {
+            "accuracy": 0.7189105858170607,
+            "consistency": 1.0,
+            "reward": 0.43782117163412126
+          },
+          "supervised_trainer": {
+            "accuracy": 0.7183967112024666,
+            "consistency": 1.0,
+            "reward": 0.4367934224049332,
+            "training_summary": {
+              "epochs": 20,
+              "loss": 0.6635332107543945,
+              "samples": 1946
+            }
+          }
+        }
+      }
+    },
+    {
+      "sample_index": 6,
+      "classifier_output": {
+        "prediction": 0,
+        "confidence": 0.9999551177024841
+      },
+      "lime_features": [
+        "feature_72 (-0.0007)",
+        "feature_39 (-0.0002)",
+        "feature_54 (-0.0001)",
+        "feature_5 (0.0001)",
+        "feature_52 (-0.0001)",
+        "feature_41 (-0.0001)",
+        "feature_12 (-0.0001)",
+        "feature_10 (0.0000)"
+      ],
+      "graph_correlation": {
+        "top_neighbors": [
+          {
+            "sample_id": "sample_4",
+            "weight": 0.5
+          }
+        ],
+        "max_weight": 0.5
+      },
+      "memory_match": {
+        "labels": [
+          0
+        ],
+        "similarities": [
+          0.5
+        ],
+        "top_similarity": 0.5
+      },
+      "fused_risk": {
+        "risk_score": 0.6750396813673434,
+        "severity": "HIGH"
+      },
+      "llm_reasoning": "High risk detected from correlated graph behavior, memory similarity, and the most important network features. Recommended action: Block.",
+      "llm_prompt": "You are a cybersecurity expert analyzing network traffic.\n\nInput:\n- Predicted Attack Type: Normal Traffic\n- Confidence Score: High (1.00)\n- Risk Score: 0.68\n- Top Features: feature_72, feature_39, feature_54\n- Memory Similarity: 0.50\n- Graph Correlation Weight: 0.50\n- Recommended Action: Block\n- Feature Summary: [-0.417, -0.284, -0.0, -0.001, 0.063, -0.004, 0.903, -0.31, 0.39, 0.754]\n\nAnalyze carefully using cybersecurity knowledge.\n\nTasks:\n1. Explain what this attack means in plain English\n2. Explain why this sample is risky using the top features, memory similarity, and graph correlation\n3. Mention whether confidence is high, medium, or low\n4. End with a recommended action sentence\n\nIMPORTANT:\n- Output exactly 2 to 4 sentences\n- Use human-readable cybersecurity language\n- Do NOT output numeric arrays, Python lists, logits, or JSON\n- Mention the top features by name\n- End with: Recommended action: Block.",
+      "planner_target": {
+        "target_action": "Alert",
+        "severity_adjustment": 0.07,
+        "review": {
+          "approved": false,
+          "correct_action": "Alert",
+          "feedback": "Adjusted action to Alert based on risk and uncertainty.",
+          "severity_adjustment": 0.07,
+          "reviewer_id": "simulated-analyst",
+          "reviewed_at": "2026-03-30 10:06:17.053560"
+        }
+      },
+      "decision": {
+        "event_id": "sample_6",
+        "risk_score": 0.6750396813673434,
+        "uncertainty": 4.488229751586914e-05,
+        "explanation": "High risk detected from correlated graph behavior, memory similarity, and the most important network features. Recommended action: Block.",
+        "suggested_action": "Block"
+      },
+      "planner_action": "Alert",
+      "human_review": {
+        "approved": true,
+        "correct_action": "Block",
+        "feedback": "Auto-approved because risk and uncertainty stayed below review thresholds.",
+        "severity_adjustment": 0.0
+      },
+      "feedback_record": {
+        "id": 1947,
+        "event_id": "sample_6",
+        "state": "{\"risk_score\": 0.6750396813673434, \"uncertainty\": 4.488229751586914e-05, \"suggested_action\": \"Block\", \"explanation\": \"High risk detected from correlated graph behavior, memory similarity, and the most important network features. Recommended action: Block.\"}",
+        "action_taken": "Block",
+        "human_action": "Block",
+        "reward": 1.0,
+        "timestamp": "2026-03-30T10:06:26.041312+00:00"
+      },
+      "retraining_update": {
+        "best_method": "rl_trainer",
+        "metrics": {
+          "rl_trainer": {
+            "accuracy": 0.7190549563430919,
+            "consistency": 1.0,
+            "reward": 0.4381099126861839
+          },
+          "supervised_trainer": {
+            "accuracy": 0.7185413456599897,
+            "consistency": 1.0,
+            "reward": 0.43708269131997946,
+            "training_summary": {
+              "epochs": 20,
+              "loss": 0.6589494943618774,
+              "samples": 1947
+            }
+          }
+        }
+      }
+    },
+    {
+      "sample_index": 7,
+      "classifier_output": {
+        "prediction": 2,
+        "confidence": 0.9998190402984619
+      },
+      "lime_features": [
+        "feature_70 (-0.0007)",
+        "feature_72 (-0.0006)",
+        "feature_67 (-0.0003)",
+        "feature_52 (-0.0002)",
+        "feature_0 (0.0002)",
+        "feature_47 (-0.0002)",
+        "feature_6 (-0.0001)",
+        "feature_51 (-0.0001)"
+      ],
+      "graph_correlation": {
+        "top_neighbors": [
+          {
+            "sample_id": "sample_4",
+            "weight": 0.5
+          }
+        ],
+        "max_weight": 0.5
+      },
+      "memory_match": {
+        "labels": [
+          0
+        ],
+        "similarities": [
+          0.6642962694168091
+        ],
+        "top_similarity": 0.6642962694168091
+      },
+      "fused_risk": {
+        "risk_score": 0.7166092758998275,
+        "severity": "HIGH"
+      },
+      "llm_reasoning": "Answer: a) a) a) a) a) a) a) a) a) a) a) a) a) a) a) a) a) a) a) a) a) a) a)",
+      "llm_prompt": "You are a cybersecurity expert analyzing network traffic.\n\nInput:\n- Predicted Attack Type: Port Scan\n- Confidence Score: High (1.00)\n- Risk Score: 0.72\n- Top Features: feature_70, feature_72, feature_67\n- Memory Similarity: 0.66\n- Graph Correlation Weight: 0.50\n- Recommended Action: Block\n- Feature Summary: [-0.437, -0.277, -0.006, -0.01, -0.052, -0.007, -0.281, -0.211, -0.281, -0.245]\n\nAnalyze carefully using cybersecurity knowledge.\n\nTasks:\n1. Explain what this attack means in plain English\n2. Explain why this sample is risky using the top features, memory similarity, and graph correlation\n3. Mention whether confidence is high, medium, or low\n4. End with a recommended action sentence\n\nIMPORTANT:\n- Output exactly 2 to 4 sentences\n- Use human-readable cybersecurity language\n- Do NOT output numeric arrays, Python lists, logits, or JSON\n- Mention the top features by name\n- End with: Recommended action: Block.",
+      "planner_target": {
+        "target_action": "Alert",
+        "severity_adjustment": 0.087,
+        "review": {
+          "approved": false,
+          "correct_action": "Alert",
+          "feedback": "Adjusted action to Alert based on risk and uncertainty.",
+          "severity_adjustment": 0.087,
+          "reviewer_id": "simulated-analyst",
+          "reviewed_at": "2026-03-30 10:06:18.392884"
+        }
+      },
+      "decision": {
+        "event_id": "sample_7",
+        "risk_score": 0.7166092758998275,
+        "uncertainty": 0.00018095970153808594,
+        "explanation": "Answer: a) a) a) a) a) a) a) a) a) a) a) a) a) a) a) a) a) a) a) a) a) a) a)",
+        "suggested_action": "Block"
+      },
+      "planner_action": "Alert",
+      "human_review": {
+        "approved": true,
+        "correct_action": "Block",
+        "feedback": "Auto-approved because risk and uncertainty stayed below review thresholds.",
+        "severity_adjustment": 0.0
+      },
+      "feedback_record": {
+        "id": 1948,
+        "event_id": "sample_7",
+        "state": "{\"risk_score\": 0.7166092758998275, \"uncertainty\": 0.00018095970153808594, \"suggested_action\": \"Block\", \"explanation\": \"Answer: a) a) a) a) a) a) a) a) a) a) a) a) a) a) a) a) a) a) a) a) a) a) a)\"}",
+        "action_taken": "Block",
+        "human_action": "Block",
+        "reward": 1.0,
+        "timestamp": "2026-03-30T10:06:26.785574+00:00"
+      },
+      "retraining_update": {
+        "best_method": "rl_trainer",
+        "metrics": {
+          "rl_trainer": {
+            "accuracy": 0.7191991786447639,
+            "consistency": 1.0,
+            "reward": 0.4383983572895277
+          },
+          "supervised_trainer": {
+            "accuracy": 0.7186858316221766,
+            "consistency": 1.0,
+            "reward": 0.43737166324435317,
+            "training_summary": {
+              "epochs": 20,
+              "loss": 0.6289036273956299,
+              "samples": 1948
+            }
+          }
+        }
+      }
+    }
+  ],
+  "drive_results_dir": "/content/drive/MyDrive/Deep Learning Project/AI Agentic/experiments/results/final_pipeline",
+  "drive_exports": [
+    "/content/drive/MyDrive/Deep Learning Project/AI Agentic/experiments/results/final_pipeline/feedback.db",
+    "/content/drive/MyDrive/Deep Learning Project/AI Agentic/experiments/results/final_pipeline/feedback_log.jsonl",
+    "/content/drive/MyDrive/Deep Learning Project/AI Agentic/experiments/results/final_pipeline/feedback_log.parquet",
+    "/content/drive/MyDrive/Deep Learning Project/AI Agentic/experiments/results/final_pipeline/final_pipeline.log",
+    "/content/drive/MyDrive/Deep Learning Project/AI Agentic/experiments/results/final_pipeline/full_pipeline_summary.json",
+    "/content/drive/MyDrive/Deep Learning Project/AI Agentic/experiments/results/final_pipeline/demo_pipeline_summary.json"
+  ]
+}

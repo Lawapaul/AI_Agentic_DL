@@ -130,6 +130,49 @@ def get_top_correlated_pairs(
     return edges[:top_k]
 
 
+def fallback_correlate_with_history(
+    current_features: np.ndarray,
+    history_features: np.ndarray,
+    top_k: int = 3,
+    threshold: float = 0.7,
+    ensure_one: bool = False,
+) -> List[Tuple[int, float]]:
+    """
+    Fallback sample-level correlation when class graph has no useful neighbors.
+
+    Returns indices relative to the provided history array.
+    """
+    history = np.asarray(history_features, dtype=np.float32)
+    if history.size == 0:
+        if ensure_one:
+            return [(-1, 0.5)]
+        return []
+
+    current = np.asarray(current_features, dtype=np.float32).reshape(-1)
+    if history.ndim == 1:
+        history = history.reshape(1, -1)
+    elif history.ndim == 3 and history.shape[-1] == 1:
+        history = history[..., 0]
+    else:
+        history = history.reshape(history.shape[0], -1)
+
+    sims = []
+    for idx, past in enumerate(history):
+        sim = _cosine_similarity(current, past)
+        if sim >= threshold:
+            sims.append((int(idx), float(sim)))
+
+    sims.sort(key=lambda item: item[1], reverse=True)
+    if sims:
+        return sims[:top_k]
+
+    if ensure_one:
+        fallback_idx = int(history.shape[0] - 1)
+        fallback_sim = float(_cosine_similarity(current, history[fallback_idx]))
+        return [(fallback_idx, max(fallback_sim, 0.5))]
+    return []
+
+
 def validate_attack_graph(G_attack: nx.Graph) -> None:
     """
     Validation checks required by Phase 3.

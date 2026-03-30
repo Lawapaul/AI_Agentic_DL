@@ -250,7 +250,19 @@ class IDSModelTrainer:
     @staticmethod
     def load_model(path):
         print(f"Loading model from: {path}")
-        return keras.models.load_model(path)
+        try:
+            return keras.models.load_model(path)
+        except Exception as exc:
+            print(f"Primary model load failed: {exc}")
+            return keras.models.load_model(
+                path,
+                compile=False,
+                safe_mode=False,
+                custom_objects={
+                    "Orthogonal": keras.initializers.Orthogonal,
+                    "keras.initializers.Orthogonal": keras.initializers.Orthogonal,
+                },
+            )
 
 
 if __name__ == "__main__":
