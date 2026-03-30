@@ -1,10 +1,12 @@
-"""Lightweight Transformer-based reasoning package for IDS explanations."""
+"""LLM reasoning package with lazy-loaded APIs and notebook runner."""
 
 from __future__ import annotations
 
 from importlib import import_module
 
-__all__ = ["LLMReasoningEngine", "LLMPipeline", "ReasoningGenerator"]
+from llm_reasoning.pipelines import run_llm_reasoning
+
+__all__ = ["LLMReasoningEngine", "LLMPipeline", "ReasoningGenerator", "run_llm_reasoning"]
 
 
 def __getattr__(name: str):
