@@ -36,6 +36,9 @@ class ReasoningGenerator:
             return ""
         if re.fullmatch(r"[\[\]\(\)\s,\-0-9.eE]+", cleaned):
             return ""
+        normalized = cleaned.lower()
+        if normalized.startswith("output exactly") or normalized == "2 to 4 sentences":
+            return ""
         cleaned = re.sub(r"^\s*(Attack|Reason|Explanation|Output)\s*:\s*", "", cleaned, count=1, flags=re.IGNORECASE)
         if "[" in cleaned and "]" in cleaned and len(cleaned) < 120:
             return ""

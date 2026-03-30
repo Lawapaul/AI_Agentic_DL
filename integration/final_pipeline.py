@@ -650,6 +650,9 @@ def _export_results_to_drive(local_results_dir: Path, drive_results_dir: Path | 
         if not source.exists():
             continue
         target = drive_results_dir / name
+        if source.resolve() == target.resolve():
+            exported_paths.append(str(target))
+            continue
         shutil.copy2(source, target)
         exported_paths.append(str(target))
     return exported_paths
