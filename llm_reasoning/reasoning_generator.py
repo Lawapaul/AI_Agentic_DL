@@ -15,6 +15,8 @@ class ReasoningGenerator:
             self.generator = pipeline(
                 "text2text-generation",
                 model=model,
+                framework="pt",
+                device=-1,
             )
         except Exception:
             # Colab images occasionally ship a transformers build without the
@@ -24,6 +26,8 @@ class ReasoningGenerator:
             self.generator = pipeline(
                 "text-generation",
                 model="distilgpt2",
+                framework="pt",
+                device=-1,
             )
 
     def generate(self, prompt: str) -> str:

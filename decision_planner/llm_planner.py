@@ -15,10 +15,10 @@ class LLMPlanner:
 
         self.task = "text2text-generation"
         try:
-            self.generator = pipeline("text2text-generation", model=model)
+            self.generator = pipeline("text2text-generation", model=model, framework="pt", device=-1)
         except Exception:
             self.task = "text-generation"
-            self.generator = pipeline("text-generation", model="distilgpt2")
+            self.generator = pipeline("text-generation", model="distilgpt2", framework="pt", device=-1)
         self.examples = []
 
     def fit(self, attacks, confidences, severities, targets, max_examples: int = 4):
