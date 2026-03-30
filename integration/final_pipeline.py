@@ -29,7 +29,6 @@ from graph_correlation import build_attack_graph, build_attack_profiles, get_top
 from graph_correlation import fallback_correlate_with_history
 from human_review.review_logic import simulate_human_review, trigger_human_review
 from human_review.schemas import ReviewRequest
-from llm_reasoning import LLMPipeline
 from memory import RuntimeMemoryRetriever
 from models.trainer import IDSModelTrainer
 from retraining import RLTrainer, SupervisedDecisionTrainer, load_feedback_dataset
@@ -76,6 +75,12 @@ def _init_optional_llm(component_name: str, factory, *args, **kwargs):
     except Exception as exc:  # pragma: no cover - depends on transformers runtime
         LOGGER.exception("%s failed: %s", component_name, exc)
         return None
+
+
+def _build_llm_pipeline(model_name: str):
+    from llm_reasoning.llm_pipeline import LLMPipeline
+
+    return LLMPipeline(model_name)
 
 
 def _available_ram_gb() -> float:
@@ -710,7 +715,7 @@ def _core_pipeline(processed_path: str, model_path: str, sample_override: int | 
 
     records = []
     planner_samples = []
-    llm_pipeline = _init_optional_llm("llm.init", LLMPipeline, DEFAULT_LLM_MODEL)
+    llm_pipeline = _init_optional_llm("llm.init", _build_llm_pipeline, DEFAULT_LLM_MODEL)
     llm_limit = len(filtered_x)
     retraining_interval = 1 if demo_mode else min(32, max(1, runtime["batch_size"]))
     latest_retraining_update = {"best_method": None, "metrics": {}}
