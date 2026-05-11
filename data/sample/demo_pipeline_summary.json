@@ -1,0 +1,362 @@
+{
+  "status": "completed",
+  "mode": "demo",
+  "output_path": "/Users/harshitsingh/Developer/Deep_Learning_Project/AI_Agentic_DL/data/sample/demo_pipeline_summary.json",
+  "records": [
+    {
+      "sample_id": "demo-sample-1",
+      "classification_layer": {
+        "prediction": 0,
+        "attack_name": "Normal Traffic",
+        "confidence": 0.9599999785423279
+      },
+      "feature_importance": [
+        "feature_5 (0.1800)",
+        "feature_1 (0.1500)",
+        "feature_7 (0.1300)",
+        "feature_4 (0.1200)",
+        "feature_6 (0.1100)"
+      ],
+      "graph_correlation": {
+        "neighbors": [
+          {
+            "class_id": 5,
+            "weight": 0.9592865705490112
+          },
+          {
+            "class_id": 3,
+            "weight": 0.9319000840187073
+          },
+          {
+            "class_id": 2,
+            "weight": 0.8853680491447449
+          }
+        ],
+        "max_weight": 0.9592865705490112
+      },
+      "memory_match": {
+        "top_k_labels": [
+          0
+        ],
+        "similarity_scores": [
+          0.5
+        ],
+        "class_distribution": {
+          "0": 1
+        },
+        "avg_similarity": 0.5,
+        "labels": [
+          0
+        ],
+        "similarities": [
+          0.5
+        ],
+        "top_similarity": 0.5
+      },
+      "risk_fusion": {
+        "risk_score": 0.8155239731073379,
+        "severity": "CRITICAL"
+      },
+      "llm_reasoning": "High risk identified for normal traffic based on classifier confidence, memory similarity (0.50), and graph correlation (0.96). The most influential signals were feature_5 (0.1800), feature_1 (0.1500), feature_7 (0.1300). Recommended action: No Action.",
+      "llm_prompt": null,
+      "decision_planner": {
+        "suggested_action": "No Action",
+        "human_review_required": true,
+        "review_reason": "risk_score>0.75"
+      },
+      "human_review": {
+        "approved": false,
+        "correct_action": "Alert",
+        "feedback": "Adjusted action to Alert based on risk and uncertainty.",
+        "severity_adjustment": 0.126,
+        "reviewer_id": "simulated-analyst",
+        "reviewed_at": "2026-05-11 10:49:55.835865"
+      }
+    },
+    {
+      "sample_id": "demo-sample-2",
+      "classification_layer": {
+        "prediction": 1,
+        "attack_name": "DoS Attack",
+        "confidence": 0.8799999952316284
+      },
+      "feature_importance": [
+        "feature_0 (0.9100)",
+        "feature_1 (0.8200)",
+        "feature_2 (0.7700)",
+        "feature_7 (0.7100)",
+        "feature_3 (0.6400)"
+      ],
+      "graph_correlation": {
+        "neighbors": [
+          {
+            "class_id": 2,
+            "weight": 0.9628186225891113
+          },
+          {
+            "class_id": 5,
+            "weight": 0.9458394646644592
+          },
+          {
+            "class_id": 3,
+            "weight": 0.8843007683753967
+          }
+        ],
+        "max_weight": 0.9628186225891113
+      },
+      "memory_match": {
+        "top_k_labels": [
+          0
+        ],
+        "similarity_scores": [
+          0.8808416128158569
+        ],
+        "class_distribution": {
+          "0": 1
+        },
+        "avg_similarity": 0.8808416128158569,
+        "labels": [
+          0
+        ],
+        "similarities": [
+          0.8808416128158569
+        ],
+        "top_similarity": 0.8808416128158569
+      },
+      "risk_fusion": {
+        "risk_score": 0.8775928020477295,
+        "severity": "CRITICAL"
+      },
+      "llm_reasoning": "Critical risk identified for dos attack based on classifier confidence, memory similarity (0.88), and graph correlation (0.96). The most influential signals were feature_0 (0.9100), feature_1 (0.8200), feature_2 (0.7700). Recommended action: Block.",
+      "llm_prompt": null,
+      "decision_planner": {
+        "suggested_action": "Block",
+        "human_review_required": true,
+        "review_reason": "risk_score>0.75"
+      },
+      "human_review": {
+        "approved": false,
+        "correct_action": "Block",
+        "feedback": "Adjusted action to Block based on risk and uncertainty.",
+        "severity_adjustment": 0.151,
+        "reviewer_id": "simulated-analyst",
+        "reviewed_at": "2026-05-11 10:49:55.836097"
+      }
+    },
+    {
+      "sample_id": "demo-sample-3",
+      "classification_layer": {
+        "prediction": 2,
+        "attack_name": "Port Scan",
+        "confidence": 0.7900000214576721
+      },
+      "feature_importance": [
+        "feature_2 (0.8100)",
+        "feature_3 (0.7200)",
+        "feature_1 (0.6700)",
+        "feature_7 (0.6100)",
+        "feature_6 (0.5500)"
+      ],
+      "graph_correlation": {
+        "neighbors": [
+          {
+            "class_id": 1,
+            "weight": 0.9628186225891113
+          },
+          {
+            "class_id": 5,
+            "weight": 0.9450017809867859
+          },
+          {
+            "class_id": 3,
+            "weight": 0.8954814076423645
+          }
+        ],
+        "max_weight": 0.9628186225891113
+      },
+      "memory_match": {
+        "top_k_labels": [
+          1
+        ],
+        "similarity_scores": [
+          0.9628186821937561
+        ],
+        "class_distribution": {
+          "1": 1
+        },
+        "avg_similarity": 0.9628186821937561,
+        "labels": [
+          1
+        ],
+        "similarities": [
+          0.9628186821937561
+        ],
+        "top_similarity": 0.9628186821937561
+      },
+      "risk_fusion": {
+        "risk_score": 0.8577498853206633,
+        "severity": "CRITICAL"
+      },
+      "llm_reasoning": "Critical risk identified for port scan based on classifier confidence, memory similarity (0.96), and graph correlation (0.96). The most influential signals were feature_2 (0.8100), feature_3 (0.7200), feature_1 (0.6700). Recommended action: Alert.",
+      "llm_prompt": null,
+      "decision_planner": {
+        "suggested_action": "Alert",
+        "human_review_required": true,
+        "review_reason": "risk_score>0.75"
+      },
+      "human_review": {
+        "approved": false,
+        "correct_action": "Block",
+        "feedback": "Adjusted action to Block based on risk and uncertainty.",
+        "severity_adjustment": 0.143,
+        "reviewer_id": "simulated-analyst",
+        "reviewed_at": "2026-05-11 10:49:55.836278"
+      }
+    },
+    {
+      "sample_id": "demo-sample-4",
+      "classification_layer": {
+        "prediction": 3,
+        "attack_name": "Brute Force Attack",
+        "confidence": 0.8399999737739563
+      },
+      "feature_importance": [
+        "feature_4 (0.9200)",
+        "feature_3 (0.8800)",
+        "feature_0 (0.7400)",
+        "feature_1 (0.6900)",
+        "feature_7 (0.6300)"
+      ],
+      "graph_correlation": {
+        "neighbors": [
+          {
+            "class_id": 5,
+            "weight": 0.9707295298576355
+          },
+          {
+            "class_id": 0,
+            "weight": 0.9319000840187073
+          },
+          {
+            "class_id": 2,
+            "weight": 0.8954814076423645
+          }
+        ],
+        "max_weight": 0.9707295298576355
+      },
+      "memory_match": {
+        "top_k_labels": [
+          0
+        ],
+        "similarity_scores": [
+          0.9319002032279968
+        ],
+        "class_distribution": {
+          "0": 1
+        },
+        "avg_similarity": 0.9319002032279968,
+        "labels": [
+          0
+        ],
+        "similarities": [
+          0.9319002032279968
+        ],
+        "top_similarity": 0.9319002032279968
+      },
+      "risk_fusion": {
+        "risk_score": 0.8755013823509217,
+        "severity": "CRITICAL"
+      },
+      "llm_reasoning": "Critical risk identified for brute force attack based on classifier confidence, memory similarity (0.93), and graph correlation (0.97). The most influential signals were feature_4 (0.9200), feature_3 (0.8800), feature_0 (0.7400). Recommended action: Alert.",
+      "llm_prompt": null,
+      "decision_planner": {
+        "suggested_action": "Alert",
+        "human_review_required": true,
+        "review_reason": "risk_score>0.75"
+      },
+      "human_review": {
+        "approved": false,
+        "correct_action": "Block",
+        "feedback": "Adjusted action to Block based on risk and uncertainty.",
+        "severity_adjustment": 0.15,
+        "reviewer_id": "simulated-analyst",
+        "reviewed_at": "2026-05-11 10:49:55.836457"
+      }
+    },
+    {
+      "sample_id": "demo-sample-5",
+      "classification_layer": {
+        "prediction": 5,
+        "attack_name": "Botnet",
+        "confidence": 0.9100000262260437
+      },
+      "feature_importance": [
+        "feature_3 (0.9500)",
+        "feature_0 (0.8700)",
+        "feature_7 (0.8300)",
+        "feature_5 (0.7800)",
+        "feature_1 (0.7300)"
+      ],
+      "graph_correlation": {
+        "neighbors": [
+          {
+            "class_id": 3,
+            "weight": 0.9707295298576355
+          },
+          {
+            "class_id": 0,
+            "weight": 0.9592865705490112
+          },
+          {
+            "class_id": 1,
+            "weight": 0.9458394646644592
+          }
+        ],
+        "max_weight": 0.9707295298576355
+      },
+      "memory_match": {
+        "top_k_labels": [
+          3
+        ],
+        "similarity_scores": [
+          0.9707295894622803
+        ],
+        "class_distribution": {
+          "3": 1
+        },
+        "avg_similarity": 0.9707295894622803,
+        "labels": [
+          3
+        ],
+        "similarities": [
+          0.9707295894622803
+        ],
+        "top_similarity": 0.9707295894622803
+      },
+      "risk_fusion": {
+        "risk_score": 0.9265914708375932,
+        "severity": "CRITICAL"
+      },
+      "llm_reasoning": "Critical risk identified for botnet based on classifier confidence, memory similarity (0.97), and graph correlation (0.97). The most influential signals were feature_3 (0.9500), feature_0 (0.8700), feature_7 (0.8300). Recommended action: Block.",
+      "llm_prompt": null,
+      "decision_planner": {
+        "suggested_action": "Block",
+        "human_review_required": true,
+        "review_reason": "risk_score>0.75"
+      },
+      "human_review": {
+        "approved": false,
+        "correct_action": "Block",
+        "feedback": "Adjusted action to Block based on risk and uncertainty.",
+        "severity_adjustment": 0.171,
+        "reviewer_id": "simulated-analyst",
+        "reviewed_at": "2026-05-11 10:49:55.836648"
+      }
+    }
+  ],
+  "graph": {
+    "node_count": 5,
+    "edge_count": 0,
+    "backend": "fallback-cosine"
+  }
+}

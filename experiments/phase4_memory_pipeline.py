@@ -22,9 +22,9 @@ REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
 
-from explainability.feature_gradient_explainer import create_feature_gradient_explainer
-from graph_correlation import build_attack_graph, build_attack_profiles, validate_attack_graph
-from memory import (
+from src.utils.explainability.feature_gradient_explainer import create_feature_gradient_explainer
+from src.fusion.graph_correlation import build_attack_graph, build_attack_profiles, validate_attack_graph
+from src.agents.memory import (
     EmbeddingKNNMemory,
     EmptyMemoryRetriever,
     FeatureGradientKNNMemory,
@@ -32,8 +32,8 @@ from memory import (
     MemoryEvaluator,
     PrototypeMemory,
 )
-from memory.base_memory import BaseMemoryRetriever
-from models.trainer import IDSModelTrainer
+from src.agents.memory.base_memory import BaseMemoryRetriever
+from src.models.trainer import IDSModelTrainer
 
 try:
     from tqdm.auto import tqdm

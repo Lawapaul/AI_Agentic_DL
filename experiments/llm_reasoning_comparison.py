@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from llm_reasoning.pipelines import run_llm_reasoning
+from src.reasoning.pipelines import run_llm_reasoning
 
 
 DEFAULT_PROCESSED_PATH = "/content/drive/MyDrive/Deep Learning Project/AI Agentic/data/processed"

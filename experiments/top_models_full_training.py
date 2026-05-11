@@ -1,7 +1,7 @@
 import time
 import pandas as pd
-from data.loader import IDSDataLoader
-from models.trainer import IDSModelTrainer
+from src.utils.data_loader import IDSDataLoader
+from src.models.trainer import IDSModelTrainer
 from sklearn.metrics import f1_score
 
 TOP_MODELS = ["hybrid", "resnet"]

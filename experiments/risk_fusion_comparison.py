@@ -10,8 +10,8 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
 
-from risk_fusion import FusionFactory
-from risk_fusion.utils import severity_to_idx
+from src.fusion.risk_fusion import FusionFactory
+from src.fusion.risk_fusion.utils import severity_to_idx
 
 
 DEFAULT_PATH = "/content/drive/MyDrive/Deep Learning Project/AI Agentic/data/processed"

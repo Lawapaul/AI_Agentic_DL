@@ -1,0 +1,29 @@
+{
+  "samples": [
+    {
+      "prediction": 0,
+      "confidence": 0.96,
+      "feature_vector": [0.10, 0.15, 0.08, 0.09, 0.12, 0.18, 0.11, 0.13]
+    },
+    {
+      "prediction": 1,
+      "confidence": 0.88,
+      "feature_vector": [0.91, 0.82, 0.77, 0.64, 0.25, 0.33, 0.58, 0.71]
+    },
+    {
+      "prediction": 2,
+      "confidence": 0.79,
+      "feature_vector": [0.44, 0.67, 0.81, 0.72, 0.38, 0.29, 0.55, 0.61]
+    },
+    {
+      "prediction": 3,
+      "confidence": 0.84,
+      "feature_vector": [0.74, 0.69, 0.34, 0.88, 0.92, 0.57, 0.41, 0.63]
+    },
+    {
+      "prediction": 5,
+      "confidence": 0.91,
+      "feature_vector": [0.87, 0.73, 0.59, 0.95, 0.66, 0.78, 0.69, 0.83]
+    }
+  ]
+}

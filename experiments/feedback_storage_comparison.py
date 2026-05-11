@@ -13,9 +13,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from feedback_storage.json_storage import JSONFeedbackStorage
-from feedback_storage.sqlite_storage import SQLiteFeedbackStorage
-from feedback_storage.vector_memory_storage import VectorMemoryFeedbackStorage
+from src.agents.feedback_storage.json_storage import JSONFeedbackStorage
+from src.agents.feedback_storage.sqlite_storage import SQLiteFeedbackStorage
+from src.agents.feedback_storage.vector_memory_storage import VectorMemoryFeedbackStorage
 
 
 DEFAULT_PROCESSED_PATH = "/content/drive/MyDrive/Deep Learning Project/AI Agentic/data/processed"

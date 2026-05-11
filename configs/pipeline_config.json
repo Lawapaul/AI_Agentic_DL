@@ -1,0 +1,9 @@
+{
+  "demo": {
+    "sample_count": 5,
+    "graph_threshold": 0.35,
+    "memory_min_similarity": 0.4,
+    "risk_threshold": 0.75,
+    "uncertainty_threshold": 0.35
+  }
+}

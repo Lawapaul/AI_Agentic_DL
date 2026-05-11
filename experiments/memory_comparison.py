@@ -11,10 +11,10 @@ from typing import Dict, List
 import numpy as np
 import pandas as pd
 
-from data.loader import IDSDataLoader
-from explainability.feature_gradient_explainer import create_feature_gradient_explainer
-from graph_correlation import build_attack_graph, build_attack_profiles
-from memory import (
+from src.utils.data_loader import IDSDataLoader
+from src.utils.explainability.feature_gradient_explainer import create_feature_gradient_explainer
+from src.fusion.graph_correlation import build_attack_graph, build_attack_profiles
+from src.agents.memory import (
     EmbeddingKNNMemory,
     EmptyMemoryRetriever,
     FeatureGradientKNNMemory,
@@ -22,7 +22,7 @@ from memory import (
     MemoryEvaluator,
     PrototypeMemory,
 )
-from models.trainer import IDSModelTrainer
+from src.models.trainer import IDSModelTrainer
 
 
 def compute_fg_matrix(explainer, X: np.ndarray, log_every: int = 1000) -> np.ndarray:
