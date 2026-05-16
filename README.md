@@ -250,11 +250,6 @@ Basic smoke coverage for the reorganized entry path.
 - Add benchmarking and reproducible experiment reports
 - Expose human-review and feedback APIs through a documented service layer
 
-## 14. Contributors
-
-- **Maintainer:** _Your Name Here_
-- **Contributors:** _Add names here_
-
 ---
 
 ## Quick Start Summary
